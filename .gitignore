@@ -1,0 +1,7 @@
+*.pyc
+venv/*
+models/*
+
+trainer/model.py
+trainer/task.py
+bin/run.train.sh

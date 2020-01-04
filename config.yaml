@@ -1,0 +1,7 @@
+project_id: "cchatterjee-sandbox"
+bucket_id: "cchatterjee-sandbox"
+
+model:
+    name: "demo_model"
+    path: "examples.sklearn.sklearn_model"
+output_dir: "models"

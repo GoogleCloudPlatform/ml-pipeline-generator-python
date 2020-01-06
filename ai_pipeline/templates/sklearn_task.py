@@ -19,10 +19,29 @@ import os
 from pathlib import Path
 import sys
 
-import joblib
-
 from trainer import model
+from trainer import utils
 from {{model_path}} import get_data
+
+
+def _parse_arguments(argv):
+    """Parses execution arguments and replaces default values.
+
+    Args:
+      argv: Input arguments from sys.
+
+    Returns:
+      Dictionary of parsed arguments.
+    """
+    parser = argparse.ArgumentParser()
+    {% for arg in args %}
+    parser.add_argument(
+        "--{{arg.name}}",
+        help="{{arg.help}}",
+        default="{{arg.default}}")
+    {% endfor %}
+    args, _ = parser.parse_known_args(args=argv[1:])
+    return args
 
 
 def _train_and_evaluate(estimator, dataset, output_dir):
@@ -31,8 +50,7 @@ def _train_and_evaluate(estimator, dataset, output_dir):
     estimator.fit(x_train, y_train)
 
     model_output_path = os.path.join(output_dir, "{{model_name}}.joblib")
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    joblib.dump(estimator, model_output_path)
+    utils.dump_object(estimator, model_output_path)
     print("Model written to {}".format(model_output_path))
 
 
@@ -40,19 +58,12 @@ def run_experiment(args):
     """Testbed for running model training and evaluation."""
     dataset = get_data()
     estimator = model.get_estimator(args)
-    _train_and_evaluate(estimator, dataset, "{{output_dir}}")
-
-
-def _parse_args(argv):
-    """Parses command-line arguments."""
-    parser = argparse.ArgumentParser()
-    {{args}}
-    return parser.parse_args(argv)
+    _train_and_evaluate(estimator, dataset, args.model_dir)
 
 
 def main():
     """Entry point."""
-    args = _parse_args(sys.argv[1:])
+    args = _parse_arguments(sys.argv)
     # TODO(humichael): Set log level in args in config
     # logging.basicConfig(level=args.log_level.upper())
     logging.basicConfig(level="INFO")

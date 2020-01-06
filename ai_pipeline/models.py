@@ -36,7 +36,7 @@ class BaseModel(object):
             setattr(self, key, config[key])
 
     def _populate_trainer(self):
-        """."""
+        """Use Jinja templates to generate model training code."""
         loader = jinja.PackageLoader("ai_pipeline", "templates")
         env = jinja.Environment(loader=loader)
 
@@ -49,8 +49,7 @@ class BaseModel(object):
         task_file = task_template.render(
             model_name=self.model["name"],
             model_path=self.model["path"],
-            args="",
-            output_dir=self.output_dir)
+            args=self.args)
         with open("trainer/task.py", "w+") as f:
             f.write(task_file)
 

@@ -1,4 +1,3 @@
-# python3
 # Copyright 2020 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,17 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Demo for AI Pipeline."""
-from ai_pipeline.models import SklearnModel
+"""Utility functions."""
+import os
+import joblib
+
+import tensorflow as tf
 
 
-def main():
-    config = "config.yaml"
-    model = SklearnModel(config)
+def dump_object(obj, output_path):
+    """Pickle the given object and write to output_path.
 
-    # TODO(humichael): implement train().
-    model.train()
-
-
-if __name__ == "__main__":
-    main()
+    Args:
+      obj: object to pickle.
+      output_path: a local or GCS path.
+    """
+    if not tf.io.gfile.exists(output_path):
+        tf.io.gfile.makedirs(os.path.dirname(output_path))
+    with tf.io.gfile.GFile(output_path, "w+") as f:
+        joblib.dump(obj, f)

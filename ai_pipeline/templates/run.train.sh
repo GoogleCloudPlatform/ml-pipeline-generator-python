@@ -28,6 +28,7 @@ REGION=us-central1
 RUNTIME_VERSION=1.15
 PYTHON_VERSION=3.5
 SCALE_TIER=BASIC
+MODEL_DIR="gs://${BUCKET_ID}/demo/models"
   
 if [ "${TYPE}" == "cloud" ]; then
   gcloud ai-platform jobs submit training "${JOB_NAME}" \
@@ -37,7 +38,9 @@ if [ "${TYPE}" == "cloud" ]; then
     --region "${REGION}" \
     --runtime-version=${RUNTIME_VERSION} \
     --python-version=${PYTHON_VERSION} \
-    --scale-tier "${SCALE_TIER}"
+    --scale-tier "${SCALE_TIER}" \
+    -- \
+    --model_dir "${MODEL_DIR}"
 else
   gcloud ai-platform local train \
     --package-path "${PACKAGE_PATH}" \

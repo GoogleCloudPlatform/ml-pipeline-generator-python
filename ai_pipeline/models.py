@@ -40,15 +40,22 @@ class BaseModel(object):
         loader = jinja.PackageLoader("ai_pipeline", "templates")
         env = jinja.Environment(loader=loader)
 
-        model_template = env.get_template("sklearn_model.py")
+        if self.model["type"] == "sklearn":
+            model_template = env.get_template("sklearn_model.py")
+        elif self.model["type"] == "tf":
+            model_template = env.get_template("tf_model.py")
         model_file = model_template.render(model_path=self.model["path"])
         with open("trainer/model.py", "w+") as f:
             f.write(model_file)
 
-        task_template = env.get_template("sklearn_task.py")
+        if self.model["type"] == "sklearn":
+            task_template = env.get_template("sklearn_task.py")
+        elif self.model["type"] == "tf":
+            task_template = env.get_template("tf_task.py")
         task_file = task_template.render(
             model_name=self.model["name"],
             model_path=self.model["path"],
+            model_type=self.model["type"],
             args=self.args)
         with open("trainer/task.py", "w+") as f:
             f.write(task_file)
@@ -73,3 +80,10 @@ class SklearnModel(BaseModel):
 
     def __init__(self, config):
         super(SklearnModel, self).__init__(config, "sklearn")
+
+
+class TFModel(BaseModel):
+    """TFModel class."""
+
+    def __init__(self, config):
+        super(TFModel, self).__init__(config, "tf")

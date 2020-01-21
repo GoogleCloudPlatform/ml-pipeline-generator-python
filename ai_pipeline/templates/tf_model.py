@@ -1,4 +1,3 @@
-# python3
 # Copyright 2020 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,20 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Demo for AI Pipeline."""
-from ai_pipeline.models import SklearnModel
-from ai_pipeline.models import TFModel
+"""ML model definitions."""
+from {{model_path}} import get_model
 
-
-def main():
-    config = "config.yaml"
-    # model = SklearnModel(config)
-    model = TFModel(config)
-
-
-    # TODO(humichael): implement train().
-    model.train()
-
-
-if __name__ == "__main__":
-    main()
+def get_estimator(flags):
+    """Returns a model."""
+    estimator = get_model(flags)
+    return estimator

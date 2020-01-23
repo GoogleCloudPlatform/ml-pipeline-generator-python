@@ -32,9 +32,24 @@ Update the information in `config.yaml`.
 This demo uses the scikit-learn model in `examples/sklearn/user_model.py` to
 create a training module to run on CAIP.
 
-Run `python demo.py` to use the config file to generate `bin/run.train.sh` along
+```bash
+python -m examples.sklearn.demo
+```
+
+Running this demo uses the config file to generate `bin/run.train.sh` along
 with `trainer/` code. Then, run `bin/run.train.sh` to train locally or
 `bin/run.train.sh cloud` to train on CAIP.
 
 ### Cleanup
 Delete the generated files by running `bin/cleanup.sh`.
+
+## Tests
+The tests use `unittest`, Python's built-in unit testing framework. By running
+`python -m unittest`, the framework performs test discovery to find all tests
+within this project. Tests can be run on a more granular level by feeding a
+directory to test discover. Read more about `unittest`
+[here](https://docs.python.org/3/library/unittest.html).
+
+```bash
+python -m unittest
+```

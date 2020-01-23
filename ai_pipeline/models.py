@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Model class definitions."""
+import abc
 import os
 import stat
 
@@ -20,38 +21,32 @@ import jinja2 as jinja
 from ai_pipeline.parsers import parse_yaml
 
 
-class BaseModel(object):
-    """BaseModel class."""
+class BaseModel(abc.ABC):
+    """Abstract class representing an ML model."""
 
     def __init__(self, config, template):
         self.template = template
-
         self._set_config(config)
-        self._populate_trainer()
 
     def _set_config(self, config_path):
-        """."""
+        """Parses the given config file and sets instance variables accordingly."""
         config = parse_yaml(config_path)
         for key in config:
             setattr(self, key, config[key])
 
-    def _populate_trainer(self):
-        """Use Jinja templates to generate model training code."""
+    # TODO(humichael): find way to avoid using relative paths.
+    @abc.abstractmethod
+    def _populate_trainer(self, task_template_path, model_template_path):
+        """Use Jinja templates to generate model training code.
+
+        Args:
+            task_template_path: path to task.py template.
+            model_template_path: path to model.py template.
+        """
         loader = jinja.PackageLoader("ai_pipeline", "templates")
         env = jinja.Environment(loader=loader)
 
-        if self.model["type"] == "sklearn":
-            model_template = env.get_template("sklearn_model.py")
-        elif self.model["type"] == "tf":
-            model_template = env.get_template("tf_model.py")
-        model_file = model_template.render(model_path=self.model["path"])
-        with open("trainer/model.py", "w+") as f:
-            f.write(model_file)
-
-        if self.model["type"] == "sklearn":
-            task_template = env.get_template("sklearn_task.py")
-        elif self.model["type"] == "tf":
-            task_template = env.get_template("tf_task.py")
+        task_template = env.get_template(task_template_path)
         task_file = task_template.render(
             model_name=self.model["name"],
             model_path=self.model["path"],
@@ -59,6 +54,11 @@ class BaseModel(object):
             args=self.args)
         with open("trainer/task.py", "w+") as f:
             f.write(task_file)
+
+        model_template = env.get_template(model_template_path)
+        model_file = model_template.render(model_path=self.model["path"])
+        with open("trainer/model.py", "w+") as f:
+            f.write(model_file)
 
         run_template = env.get_template("run.train.sh")
         run_file = run_template.render(
@@ -80,6 +80,11 @@ class SklearnModel(BaseModel):
 
     def __init__(self, config):
         super(SklearnModel, self).__init__(config, "sklearn")
+        self._populate_trainer()
+
+    def _populate_trainer(self):
+        super(SklearnModel, self)._populate_trainer(
+            "sklearn_task.py", "sklearn_model.py")
 
 
 class TFModel(BaseModel):
@@ -87,3 +92,8 @@ class TFModel(BaseModel):
 
     def __init__(self, config):
         super(TFModel, self).__init__(config, "tf")
+        self._populate_trainer()
+
+    def _populate_trainer(self):
+        super(TFModel, self)._populate_trainer("tf_task.py", "tf_model.py")
+

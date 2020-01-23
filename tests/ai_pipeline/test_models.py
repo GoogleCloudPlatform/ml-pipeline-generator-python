@@ -43,8 +43,10 @@ class TestSklearnModel(unittest.TestCase):
     def tearDownClass(cls):
         """Cleans up generated directories."""
         super(TestSklearnModel, cls).tearDownClass()
-        subprocess.call("./bin/cleanup.sh")
+        subprocess.call("bin/cleanup.sh")
 
+    # TODO(humichael): technically private functions don't need to be tested. It
+    # should reflect in public functions.
     def test_set_config(self):
         """Ensures instance variables are created."""
         model = self.__class__.model
@@ -57,7 +59,7 @@ class TestSklearnModel(unittest.TestCase):
         """Ensures task.py and model.py are created."""
         model = self.__class__.model
         # TODO(humichael): support cleaning only training step
-        subprocess.call("./bin/cleanup.sh")
+        subprocess.call("bin/cleanup.sh")
 
         model._populate_trainer()
         trainer_files = os.listdir("trainer")
@@ -65,6 +67,24 @@ class TestSklearnModel(unittest.TestCase):
         self.assertIn("task.py", trainer_files)
         self.assertIn("model.py", trainer_files)
         self.assertIn("run.train.sh", bin_files)
+
+    @unittest.skip("Fails due to https://b.corp.google.com/issues/148144741")
+    def test_local_train(self):
+        """Tests local training."""
+        model = self.__class__.model
+        model.train()
+        model_files = os.listdir("models")
+        self.assertIn("{}.joblib".format(model.model["name"]), model_files)
+
+    # TODO(humichael): Need to spoof CAIP calls to test this.
+    def test_cloud_train(self):
+        """Tests training on CAIP."""
+        pass
+
+    # TODO(humichael): Need to spoof CAIP calls to test this.
+    def test_serve(self):
+        """Tests serving."""
+        pass
 
 
 if __name__ == "__main__":

@@ -20,8 +20,8 @@ def main():
     config = "examples/sklearn/config.yaml"
     model = SklearnModel(config)
 
-    # TODO(humichael): implement train().
-    model.train()
+    model.train(cloud=True)
+    model.serve()
 
 
 if __name__ == "__main__":

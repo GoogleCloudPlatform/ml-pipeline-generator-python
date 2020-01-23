@@ -49,7 +49,7 @@ def _train_and_evaluate(estimator, dataset, output_dir):
     x_train, y_train = dataset
     estimator.fit(x_train, y_train)
 
-    model_output_path = os.path.join(output_dir, "{{model_name}}.joblib")
+    model_output_path = os.path.join(output_dir, "model.joblib")
     utils.dump_object(estimator, model_output_path)
     print("Model written to {}".format(model_output_path))
 

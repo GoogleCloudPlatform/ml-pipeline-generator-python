@@ -1,3 +1,4 @@
+# python3
 # Copyright 2020 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,9 +14,14 @@
 # limitations under the License.
 """Model class definitions."""
 import abc
+import datetime as dt
 import os
 import stat
+import subprocess
+import time
 
+from googleapiclient import discovery
+from googleapiclient import errors
 import jinja2 as jinja
 
 from ai_pipeline.parsers import parse_yaml
@@ -24,15 +30,67 @@ from ai_pipeline.parsers import parse_yaml
 class BaseModel(abc.ABC):
     """Abstract class representing an ML model."""
 
-    def __init__(self, config, template):
-        self.template = template
+    def __init__(self, config):
+        self.ml_client = discovery.build("ml", "v1")
         self._set_config(config)
+        self.model_dir = "models"
 
     def _set_config(self, config_path):
         """Parses the given config file and sets instance variables accordingly."""
         config = parse_yaml(config_path)
         for key in config:
             setattr(self, key, config[key])
+        # TODO(humichael): Validate config
+
+    def _get_parent(self, model=False, version="", job=""):
+        """Returns the parent to pass to the CAIP API.
+
+        Args:
+            model: true if the parent entity is a model.
+            version: a version name.
+            job: a job id.
+
+        Returns:
+            a parent entity to pass to a CAIP API call. With no additional
+            parameters, a project is returned. However, setting any one of the
+            keyword args will change the retuned entity based on the set
+            parameter.
+        """
+        parent = "projects/{}".format(self.project_id)
+        if version:
+            parent += "/models/{}/versions/{}".format(
+                self.model["name"], version)
+        elif model:
+            parent += "/models/{}".format(self.model["name"])
+        elif job:
+            parent += "/jobs/{}".format(job)
+        return parent
+
+    def _call_ml_client(self, request, silent_fail=False):
+        """Calls the CAIP API by executing the given request.
+
+        Args:
+            request: an API request built using self.ml_client.
+            silent_fail: does not raise errors if True.
+
+        Returns:
+            response: a dict representing either the response of a successful
+                call or the error message of an unsuccessful call.
+            success: True if the API call was successful.
+
+        Raises:
+            HttpError: when API call fails and silent_fail is set to False.
+        """
+        try:
+            response = request.execute()
+            success = True
+        except errors.HttpError as err:
+            if not silent_fail:
+                raise err
+            # pylint: disable=protected-access
+            response = {"error": err._get_reason()}
+            success = False
+        return response, success
 
     # TODO(humichael): find way to avoid using relative paths.
     @abc.abstractmethod
@@ -50,7 +108,6 @@ class BaseModel(abc.ABC):
         task_file = task_template.render(
             model_name=self.model["name"],
             model_path=self.model["path"],
-            model_type=self.model["type"],
             args=self.args)
         with open("trainer/task.py", "w+") as f:
             f.write(task_file)
@@ -61,9 +118,7 @@ class BaseModel(abc.ABC):
             f.write(model_file)
 
         run_template = env.get_template("run.train.sh")
-        run_file = run_template.render(
-            project_id=self.project_id,
-            bucket_id=self.bucket_id)
+        run_file = run_template.render(model=self)
         run_file_path = "bin/run.train.sh"
         with open(run_file_path, "w+") as f:
             f.write(run_file)
@@ -71,29 +126,156 @@ class BaseModel(abc.ABC):
         st = os.stat(run_file_path)
         os.chmod(run_file_path, st.st_mode | stat.S_IEXEC)
 
-    def train(self):
-        pass
+    def _get_model_dir(self):
+        """Returns the GCS path to the model dir."""
+        return os.path.join(
+            "gs://", self.bucket_id, self.model["name"], self.model_dir)
+
+    def _wait_until_done(self, job_id, wait_interval=60):
+        """Blocks until the given job is completed.
+
+        Args:
+            job_id: a CAIP job id.
+            wait_interval: the amount of seconds to wait after checking the job
+                state.
+
+        Raises:
+            RuntimeError: if the job does not succeed.
+        """
+        state = ""
+        end_states = ["SUCCEEDED", "FAILED", "CANCELLED"]
+        jobs_client = self.ml_client.projects().jobs()
+
+        print("Waiting for {} to complete. Checking every {} seconds.".format(
+            job_id, wait_interval))
+        while state not in end_states:
+            time.sleep(wait_interval)
+            request = jobs_client.get(name=self._get_parent(job=job_id))
+            response, _ = self._call_ml_client(request)
+            state = response["state"]
+            print("Job state of {}: {}".format(job_id, state))
+        if state != "SUCCEEDED":
+            raise RuntimeError(
+                "Job didn't succeed. End state: {}".format(state))
+
+    def train(self, cloud=False, blocking=True):
+        """Trains a model locally or on CAIP.
+
+        Note: gcloud is used instead of the CAIP python API because only gcloud
+        supports training locally and training on the cloud using a local
+        model.
+
+        Args:
+            cloud: true if training should be done on CAIP.
+            blocking: true if the function should exit only once the job
+                completes.
+        """
+        train_type = "cloud" if cloud else "local"
+        now = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+        job_id = "{}_{}".format(self.model["name"], now)
+        subprocess.call(["bin/run.train.sh", train_type, job_id])
+        if cloud and blocking:
+            self._wait_until_done(job_id)
+
+    def _create_model(self):
+        """Creates a model for serving on CAIP."""
+        models_client = self.ml_client.projects().models()
+        body = {
+            "name": self.model["name"],
+            "regions": [self.region],
+            "onlinePredictionLogging": True,
+        }
+        request = models_client.create(
+            parent=self._get_parent(), body=body)
+        response, _ = self._call_ml_client(request)
+
+        print("Created new model:")
+        print(response)
+
+    def _create_version(self, version, framework):
+        """Creates a new version of the model for serving.
+
+        Args:
+            version: a version number to use to create a version name.
+            framework: the framework enum value to pass to the API.
+
+        Returns:
+            the name of the version just created.
+        """
+        versions_client = self.ml_client.projects().models().versions()
+        name = "{}_{}".format(self.model["name"], version)
+        body = {
+            "name": name,
+            "deploymentUri": self._get_model_dir(),
+            "runtimeVersion": self.runtime_version,
+            "framework": framework,
+            "pythonVersion": self.python_version,
+        }
+        request = versions_client.create(
+            parent=self._get_parent(model=True), body=body)
+        self._call_ml_client(request)
+
+        request = versions_client.get(name=self._get_parent(version=name))
+        response, _ = self._call_ml_client(request)
+        print("Created new version for {}:".format(self.model["name"]))
+        print(response)
+        return name
+
+    @abc.abstractmethod
+    def serve(self, framework):
+        """Serves model and returns the version name created.
+
+        Args:
+            framework: the framework enum value to pass to the API.
+
+        Returns:
+            the name of the version just created.
+        """
+        versions_client = self.ml_client.projects().models().versions()
+        request = versions_client.list(parent=self._get_parent(model=True))
+        response, model_exists = self._call_ml_client(request, silent_fail=True)
+        if model_exists:
+            if response:
+                versions = [int(version["name"].split("_")[-1])
+                            for version in response["versions"]]
+                version = max(versions) + 1
+            else:
+                version = 1
+        else:
+            self._create_model()
+            version = 0
+        return self._create_version(version, framework)
+
+    # TODO(humichael): clean up with python code, not a shell script.
+    def clean_up(self):
+        """Delete all generated files."""
+        subprocess.call("bin/cleanup.sh")
 
 
 class SklearnModel(BaseModel):
     """SklearnModel class."""
 
     def __init__(self, config):
-        super(SklearnModel, self).__init__(config, "sklearn")
+        super(SklearnModel, self).__init__(config)
         self._populate_trainer()
 
     def _populate_trainer(self):
         super(SklearnModel, self)._populate_trainer(
             "sklearn_task.py", "sklearn_model.py")
 
+    def serve(self):
+        return super(SklearnModel, self).serve("SCIKIT_LEARN")
+
 
 class TFModel(BaseModel):
     """TFModel class."""
 
     def __init__(self, config):
-        super(TFModel, self).__init__(config, "tf")
+        super(TFModel, self).__init__(config)
         self._populate_trainer()
 
     def _populate_trainer(self):
         super(TFModel, self)._populate_trainer("tf_task.py", "tf_model.py")
 
+    def serve(self):
+        return super(TFModel, self).serve("TENSORFLOW")

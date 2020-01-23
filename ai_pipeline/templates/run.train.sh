@@ -15,20 +15,24 @@
 # limitations under the License.
 #
 # Convenience script for training model on AI Platform.
-TYPE=${1:-"local"}
-
 NOW=$(date +"%Y%m%d_%H%M%S")
-PROJECT_ID="{{project_id}}"
-BUCKET_ID="{{bucket_id}}"
-JOB_NAME=demo_${NOW}
-JOB_DIR=gs://$BUCKET_ID/demo
+NAME="{{model.model['name']}}"
+
+TYPE=$1
+JOB_NAME=${2:-"${NAME}_${NOW}"}
+
+PROJECT_ID="{{model.project_id}}"
+BUCKET_ID="{{model.bucket_id}}"
+JOB_DIR="gs://${BUCKET_ID}/${NAME}"
 PACKAGE_PATH=trainer
 MODULE_NAME=trainer.task
-REGION=us-central1
+REGION="{{model.region}}"
 RUNTIME_VERSION=1.15
 PYTHON_VERSION=3.5
 SCALE_TIER=BASIC
-MODEL_DIR="gs://${BUCKET_ID}/demo/models"
+# TODO(humichael): models currently overwrite old models (may be out of scope to
+# support)
+MODEL_DIR="{{model._get_model_dir()}}"
   
 if [ "${TYPE}" == "cloud" ]; then
   gcloud ai-platform jobs submit training "${JOB_NAME}" \

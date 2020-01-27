@@ -15,6 +15,6 @@
 from {{model_path}} import get_model
 
 def get_estimator(flags):
-    """Returns a SKLearn model."""
+    """Returns an XGBoost model."""
     estimator = get_model(flags)
     return estimator

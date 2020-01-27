@@ -1,0 +1,15 @@
+# Config file for AI Pipeline.
+
+project_id: "cchatterjee-sandbox"
+bucket_id: "cchatterjee-sandbox"
+region: "us-central1"
+# AI Platform runtime version (https://cloud.google.com/ml-engine/docs/runtime-version-list)
+runtime_version: "1.15"
+python_version: "3.7"
+model:
+    name: "tf_demo_model"
+    path: "examples.tf.tf_model"
+args:
+    - name: "model_dir"
+      help: "Dir or bucket to save model files."
+      default: "models"

@@ -7,7 +7,7 @@ region: "us-central1"
 runtime_version: "1.15"
 python_version: "3.7"
 model:
-    name: "demo_model"
+    name: "sklearn_demo_model"
     path: "examples.sklearn.sklearn_model"
 args:
     - name: "model_dir"

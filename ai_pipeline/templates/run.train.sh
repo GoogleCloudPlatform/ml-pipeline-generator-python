@@ -27,8 +27,8 @@ JOB_DIR="gs://${BUCKET_ID}/${NAME}"
 PACKAGE_PATH=trainer
 MODULE_NAME=trainer.task
 REGION="{{model.region}}"
-RUNTIME_VERSION=1.15
-PYTHON_VERSION=3.5
+RUNTIME_VERSION="{{model.runtime_version}}"
+PYTHON_VERSION="{{model.python_version}}"
 SCALE_TIER=BASIC
 # TODO(humichael): models currently overwrite old models (may be out of scope to
 # support)

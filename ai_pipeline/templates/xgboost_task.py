@@ -16,9 +16,8 @@
 import argparse
 import logging
 import os
-from pathlib import Path
 import sys
-import tensorflow as tf
+import xgboost as xgb
 
 from trainer import model
 from trainer import utils
@@ -49,8 +48,10 @@ def _train_and_evaluate(estimator, dataset, output_dir):
     """Runs model training and evaluation."""
     x_train, y_train = dataset
     estimator.fit(x_train, y_train)
-    utils.dump_object(estimator, output_dir, "tf")
-    print("{{model_type}} written to {}".format("{{model_name}}"))
+
+    model_output_path = os.path.join(output_dir, "model.joblib")
+    utils.dump_object(estimator, model_output_path)
+    print("Model written to {}".format(model_output_path))
 
 
 def run_experiment(args):
@@ -63,8 +64,6 @@ def run_experiment(args):
 def main():
     """Entry point."""
     args = _parse_arguments(sys.argv)
-    # TODO(humichael): Set log level in args in config
-    # logging.basicConfig(level=args.log_level.upper())
     logging.basicConfig(level="INFO")
     run_experiment(args)
 

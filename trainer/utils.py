@@ -13,19 +13,24 @@
 # limitations under the License.
 """Utility functions."""
 import os
-import joblib
+from sklearn.externals import joblib
 
 import tensorflow as tf
 
 
-def dump_object(obj, output_path):
+def dump_object(obj, output_path, model_type=""):
     """Pickle the given object and write to output_path.
 
     Args:
       obj: object to pickle.
       output_path: a local or GCS path.
+      model_type: whether we are saving a TF model or sklearn/xgboost
     """
     if not tf.io.gfile.exists(output_path):
         tf.io.gfile.makedirs(os.path.dirname(output_path))
-    with tf.io.gfile.GFile(output_path, "w+") as f:
-        joblib.dump(obj, f)
+    if model_type == "tf":
+        tf.saved_model.save(obj, output_path)
+    else:
+        with tf.io.gfile.GFile(output_path, "w+") as f:
+            joblib.dump(obj, f)
+

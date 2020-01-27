@@ -4,3 +4,4 @@ joblib
 scikit-learn
 tensorflow>=0.14.0,<2.0.0
 pyyaml
+xgboost

@@ -1,3 +1,4 @@
+# python3
 # Copyright 2020 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,10 +12,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""ML model definitions."""
-from {{model_path}} import get_model
+"""Demo for XGBoost AI Pipeline."""
+from ai_pipeline.models import XGBoostModel
 
-def get_estimator(flags):
-    """Returns a SKLearn model."""
-    estimator = get_model(flags)
-    return estimator
+
+def main():
+    config = "examples/xgboost/config.yaml"
+    model = XGBoostModel(config)
+
+    model.train(cloud=True)
+    model.serve()
+
+
+if __name__ == "__main__":
+    main()

@@ -279,3 +279,17 @@ class TFModel(BaseModel):
 
     def serve(self):
         return super(TFModel, self).serve("TENSORFLOW")
+
+
+class XGBoostModel(BaseModel):
+    """XGBoost class."""
+
+    def __init__(self, config):
+        super(XGBoostModel, self).__init__(config)
+        self._populate_trainer()
+
+    def _populate_trainer(self):
+        super(XGBoostModel, self)._populate_trainer("xgboost_task.py", "xgboost_model.py")
+
+    def serve(self):
+        return super(XGBoostModel, self).serve("XGBOOST")

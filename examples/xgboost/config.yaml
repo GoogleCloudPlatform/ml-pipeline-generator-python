@@ -1,3 +1,5 @@
+# Config file for AI Pipeline.
+
 project_id: "cchatterjee-sandbox"
 bucket_id: "cchatterjee-sandbox"
 region: "us-central1"
@@ -5,10 +7,9 @@ region: "us-central1"
 runtime_version: "1.15"
 python_version: "3.7"
 model:
-    name: "demo_model"
-    path: "examples.tf.tf_model"
-    type: "tf"
+    name: "xgb_demo_model"
+    path: "examples.xgboost.xgboost_model"
 args:
     - name: "model_dir"
       help: "Dir or bucket to save model files."
-      default:
+      default: "models"

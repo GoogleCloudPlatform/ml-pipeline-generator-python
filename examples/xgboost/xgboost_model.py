@@ -1,4 +1,5 @@
-# Copyright 2020 Google Inc. All Rights Reserved.
+# python3
+# Copyright 2019 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,10 +12,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""ML model definitions."""
-from {{model_path}} import get_model
+"""Train a simple XGBoost classifier for Iris dataset."""
 
-def get_estimator(flags):
-    """Returns a SKLearn model."""
-    estimator = get_model(flags)
-    return estimator
+from sklearn import datasets
+from xgboost import XGBClassifier
+
+
+def get_data():
+    iris = datasets.load_iris()
+    return [iris.data, iris.target]
+
+
+def get_model(args={}):
+    """Trains a classifier on iris data."""
+    classifier = XGBClassifier()
+    return classifier
+
+
+if __name__ == "__main__":
+    data, target = get_data()
+    model = get_model()
+    model.fit(data, target)

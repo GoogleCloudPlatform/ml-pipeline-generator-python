@@ -42,13 +42,14 @@ class BaseModel(abc.ABC):
             setattr(self, key, config[key])
         # TODO(humichael): Validate config
 
-    def _get_parent(self, model=False, version="", job=""):
+    def _get_parent(self, model=False, version="", job="", operation=""):
         """Returns the parent to pass to the CAIP API.
 
         Args:
             model: true if the parent entity is a model.
             version: a version name.
             job: a job id.
+            operation: an operation name.
 
         Returns:
             a parent entity to pass to a CAIP API call. With no additional
@@ -64,6 +65,8 @@ class BaseModel(abc.ABC):
             parent += "/models/{}".format(self.model["name"])
         elif job:
             parent += "/jobs/{}".format(job)
+        elif operation:
+            parent += "/operations/{}".format(operation)
         return parent
 
     def _call_ml_client(self, request, silent_fail=False):
@@ -158,7 +161,7 @@ class BaseModel(abc.ABC):
             raise RuntimeError(
                 "Job didn't succeed. End state: {}".format(state))
 
-    def train(self, cloud=False, blocking=True):
+    def train(self, cloud=False, blocking=True, wait_interval=60):
         """Trains a model locally or on CAIP.
 
         Note: gcloud is used instead of the CAIP python API because only gcloud
@@ -169,13 +172,15 @@ class BaseModel(abc.ABC):
             cloud: true if training should be done on CAIP.
             blocking: true if the function should exit only once the job
                 completes.
+            wait_interval: if blocking, how often the job state should be
+                checked.
         """
         train_type = "cloud" if cloud else "local"
         now = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         job_id = "{}_{}".format(self.model["name"], now)
         subprocess.call(["bin/run.train.sh", train_type, job_id])
         if cloud and blocking:
-            self._wait_until_done(job_id)
+            self._wait_until_done(job_id, wait_interval)
 
     def _create_model(self):
         """Creates a model for serving on CAIP."""
@@ -187,17 +192,36 @@ class BaseModel(abc.ABC):
         }
         request = models_client.create(
             parent=self._get_parent(), body=body)
-        response, _ = self._call_ml_client(request)
+        self._call_ml_client(request)
 
-        print("Created new model:")
-        print(response)
+    def _wait_until_op_done(self, op_name, wait_interval=30):
+        """Blocks until the given Operation is completed.
 
-    def _create_version(self, version, framework):
+        Args:
+            op_name: a CAIP Operation name.
+            wait_interval: the amount of seconds to wait after checking the
+                state.
+        """
+        done = False
+        op_client = self.ml_client.projects().operations()
+
+        print("Waiting for {} to complete. Checking every {} seconds.".format(
+            op_name, wait_interval))
+        while not done:
+            time.sleep(wait_interval)
+            request = op_client.get(name=self._get_parent(operation=op_name))
+            response, _ = self._call_ml_client(request)
+            done = "done" in response and response["done"]
+            print("Operation {} completed: {}".format(op_name, done))
+
+    def _create_version(self, version, framework, wait_interval=30):
         """Creates a new version of the model for serving.
 
         Args:
             version: a version number to use to create a version name.
             framework: the framework enum value to pass to the API.
+            wait_interval: if blocking, how often the job state should be
+                checked.
 
         Returns:
             the name of the version just created.
@@ -213,13 +237,23 @@ class BaseModel(abc.ABC):
         }
         request = versions_client.create(
             parent=self._get_parent(model=True), body=body)
-        self._call_ml_client(request)
-
-        request = versions_client.get(name=self._get_parent(version=name))
-        response, _ = self._call_ml_client(request)
-        print("Created new version for {}:".format(self.model["name"]))
-        print(response)
+        op, _ = self._call_ml_client(request)
+        op_name = op["name"].split("/")[-1]
+        self._wait_until_op_done(op_name, wait_interval)
         return name
+
+    def get_versions(self):
+        """Returns the model versions if a model exists.
+
+        Returns:
+            response: the API response if a model exists, otherwise an object
+                containing the error message.
+            model_exists: True if a served model exists.
+        """
+        versions_client = self.ml_client.projects().models().versions()
+        request = versions_client.list(parent=self._get_parent(model=True))
+        response, model_exists = self._call_ml_client(request, silent_fail=True)
+        return response, model_exists
 
     @abc.abstractmethod
     def serve(self, framework):
@@ -231,9 +265,7 @@ class BaseModel(abc.ABC):
         Returns:
             the name of the version just created.
         """
-        versions_client = self.ml_client.projects().models().versions()
-        request = versions_client.list(parent=self._get_parent(model=True))
-        response, model_exists = self._call_ml_client(request, silent_fail=True)
+        response, model_exists = self.get_versions()
         if model_exists:
             if response:
                 versions = [int(version["name"].split("_")[-1])
@@ -245,6 +277,31 @@ class BaseModel(abc.ABC):
             self._create_model()
             version = 0
         return self._create_version(version, framework)
+
+    def online_predict(self, inputs, version=""):
+        """Uses a served model to get predictions for the given inputs.
+
+        Args:
+          inputs: a list of feature vectors.
+          version: the version name of the served model to use. If none is
+              provided, the default version will be used.
+
+        Returns:
+            a list of predictions.
+        """
+        name = self._get_parent(model=True)
+        if version:
+            name = self._get_parent(version=version)
+        projects_client = self.ml_client.projects()
+        request = projects_client.predict(name=name, body={"instances": inputs})
+        response, _ = self._call_ml_client(request)
+        return response["predictions"]
+
+    def batch_predict(self, inputs):
+        """Uses a saved model on GCS to make predictions."""
+        # [BLOCKED] until train() uses the python API instead of a script.
+        # create a Job with PredictionInput
+        pass
 
     # TODO(humichael): clean up with python code, not a shell script.
     def clean_up(self):
@@ -289,7 +346,8 @@ class XGBoostModel(BaseModel):
         self._populate_trainer()
 
     def _populate_trainer(self):
-        super(XGBoostModel, self)._populate_trainer("xgboost_task.py", "xgboost_model.py")
+        super(XGBoostModel, self)._populate_trainer(
+            "xgboost_task.py", "xgboost_model.py")
 
     def serve(self):
         return super(XGBoostModel, self).serve("XGBOOST")

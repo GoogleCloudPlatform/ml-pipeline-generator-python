@@ -18,10 +18,16 @@ from ai_pipeline.models import SklearnModel
 
 def main():
     config = "examples/sklearn/config.yaml"
-    model = SklearnModel(config)
+    pred_input = [
+        [6.8, 2.8, 4.8, 1.4],
+        [6.0, 3.4, 4.5, 1.6],
+    ]
 
+    model = SklearnModel(config)
     model.train(cloud=True)
-    model.serve()
+    version = model.serve()
+    preds = model.online_predict(pred_input, version=version)
+    print("Predictions: {}".format(preds))
 
 
 if __name__ == "__main__":

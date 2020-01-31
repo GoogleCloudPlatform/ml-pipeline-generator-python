@@ -16,13 +16,13 @@
 import abc
 import datetime as dt
 import os
-import stat
 import subprocess
 import time
 
 from googleapiclient import discovery
 from googleapiclient import errors
 import jinja2 as jinja
+import tensorflow.compat.v1 as tf
 
 from ai_pipeline.parsers import parse_yaml
 
@@ -34,6 +34,8 @@ class BaseModel(abc.ABC):
         self.ml_client = discovery.build("ml", "v1")
         self._set_config(config)
         self.model_dir = "models"
+        # TODO(humichael): Move this to config and generate setup.py
+        self.package_name = "ai-pipeline"
 
     def _set_config(self, config_path):
         """Parses the given config file and sets instance variables accordingly."""
@@ -42,6 +44,7 @@ class BaseModel(abc.ABC):
             setattr(self, key, config[key])
         # TODO(humichael): Validate config
 
+    # TODO(humichael): Move to utils
     def _get_parent(self, model=False, version="", job="", operation=""):
         """Returns the parent to pass to the CAIP API.
 
@@ -69,6 +72,7 @@ class BaseModel(abc.ABC):
             parent += "/operations/{}".format(operation)
         return parent
 
+    # TODO(humichael): Move to utils
     def _call_ml_client(self, request, silent_fail=False):
         """Calls the CAIP API by executing the given request.
 
@@ -120,15 +124,6 @@ class BaseModel(abc.ABC):
         with open("trainer/model.py", "w+") as f:
             f.write(model_file)
 
-        run_template = env.get_template("run.train.sh")
-        run_file = run_template.render(model=self)
-        run_file_path = "bin/run.train.sh"
-        with open(run_file_path, "w+") as f:
-            f.write(run_file)
-
-        st = os.stat(run_file_path)
-        os.chmod(run_file_path, st.st_mode | stat.S_IEXEC)
-
     def _get_model_dir(self):
         """Returns the GCS path to the model dir."""
         return os.path.join(
@@ -161,26 +156,62 @@ class BaseModel(abc.ABC):
             raise RuntimeError(
                 "Job didn't succeed. End state: {}".format(state))
 
-    def train(self, cloud=False, blocking=True, wait_interval=60):
-        """Trains a model locally or on CAIP.
+    def _get_staging_dir(self):
+        """Returns the GCS path to the staging dir."""
+        return os.path.join(
+            "gs://", self.bucket_id, self.model["name"], "staging")
 
-        Note: gcloud is used instead of the CAIP python API because only gcloud
-        supports training locally and training on the cloud using a local
-        model.
+    # TODO(humichael): Move to utils.py
+    def _upload_trainer_dist(self):
+        """Builds a source distribution and uploads it to GCS."""
+        dist_dir = "dist"
+        dist_file = "{}-1.0.tar.gz".format(self.package_name)
+        staging_dir = self._get_staging_dir()
+        subprocess.call(["python", "setup.py", "sdist"],
+                        stdout=open(os.devnull, "wb"))
+        if not tf.io.gfile.exists(staging_dir):
+            tf.io.gfile.makedirs(staging_dir)
+
+        src = os.path.join(dist_dir, dist_file)
+        dst = os.path.join(staging_dir, dist_file)
+        tf.io.gfile.copy(src, dst, overwrite=True)
+        return dst
+
+    def train(self, blocking=True, wait_interval=60):
+        """Trains on CAIP.
 
         Args:
-            cloud: true if training should be done on CAIP.
             blocking: true if the function should exit only once the job
                 completes.
             wait_interval: if blocking, how often the job state should be
                 checked.
         """
-        train_type = "cloud" if cloud else "local"
         now = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         job_id = "{}_{}".format(self.model["name"], now)
-        subprocess.call(["bin/run.train.sh", train_type, job_id])
-        if cloud and blocking:
+        package_uri = self._upload_trainer_dist()
+        jobs_client = self.ml_client.projects().jobs()
+        body = {
+            "jobId": job_id,
+            "trainingInput": {
+                "scaleTier": "BASIC",
+                "packageUris": [package_uri],
+                "pythonModule": "trainer.task",
+                "args": [
+                    "--model_dir", self._get_model_dir(),
+                ],
+                "region": self.region,
+                "runtimeVersion": self.runtime_version,
+                "pythonVersion": self.python_version,
+            },
+        }
+        request = jobs_client.create(parent=self._get_parent(), body=body)
+        self._call_ml_client(request)
+        if blocking:
             self._wait_until_done(job_id, wait_interval)
+
+    def train_local(self):
+        """Trains the model locally."""
+        subprocess.call("bin/run.local_train.sh")
 
     def _create_model(self):
         """Creates a model for serving on CAIP."""
@@ -278,6 +309,7 @@ class BaseModel(abc.ABC):
             version = 0
         return self._create_version(version, framework)
 
+    # TODO(humichael): Add option to pass in csv/json file.
     def online_predict(self, inputs, version=""):
         """Uses a served model to get predictions for the given inputs.
 

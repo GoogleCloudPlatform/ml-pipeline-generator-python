@@ -20,7 +20,7 @@ def main():
     config = "examples/xgboost/config.yaml"
     model = XGBoostModel(config)
 
-    model.train(cloud=True)
+    model.train()
     model.serve()
 
 

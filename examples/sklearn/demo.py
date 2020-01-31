@@ -24,9 +24,11 @@ def main():
     ]
 
     model = SklearnModel(config)
-    model.train(cloud=True)
+    model.train()
     version = model.serve()
     preds = model.online_predict(pred_input, version=version)
+
+    print("Features: {}".format(pred_input))
     print("Predictions: {}".format(preds))
 
 

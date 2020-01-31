@@ -2,5 +2,6 @@
 
 rm trainer/task.py
 rm trainer/model.py
-rm bin/run.train.sh
+rm -rf dist/
+rm -rf *.egg-info/
 rm -rf models/

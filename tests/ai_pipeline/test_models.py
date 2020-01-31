@@ -44,7 +44,7 @@ class TestSklearnModel(unittest.TestCase):
     def tearDownClass(cls):
         """Cleans up generated directories."""
         super(TestSklearnModel, cls).tearDownClass()
-        subprocess.call("bin/cleanup.sh")
+        cls.model.clean_up()
 
     # TODO(humichael): technically private functions don't need to be tested. It
     # should reflect in public functions.
@@ -54,20 +54,17 @@ class TestSklearnModel(unittest.TestCase):
         model.model = {}
 
         model._set_config(self.__class__.config)
-        self.assertEqual(model.model["name"], "demo_model")
+        self.assertEqual(model.model["name"], "sklearn_demo_model")
 
     def test_populate_trainer(self):
         """Ensures task.py and model.py are created."""
         model = self.__class__.model
-        # TODO(humichael): support cleaning only training step
-        subprocess.call("bin/cleanup.sh")
+        model.clean_up()
 
         model._populate_trainer()
         trainer_files = os.listdir("trainer")
-        bin_files = os.listdir("bin")
         self.assertIn("task.py", trainer_files)
         self.assertIn("model.py", trainer_files)
-        self.assertIn("run.train.sh", bin_files)
 
     @unittest.skip("Fails due to https://b.corp.google.com/issues/148144741")
     def test_local_train(self):

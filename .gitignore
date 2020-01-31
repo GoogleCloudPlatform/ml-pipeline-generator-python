@@ -1,7 +1,8 @@
 *.pyc
 venv/*
 models/*
+*.egg-info/
+dist/*
 
 trainer/model.py
 trainer/task.py
-bin/run.train.sh

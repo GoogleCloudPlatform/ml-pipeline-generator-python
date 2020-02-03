@@ -20,8 +20,8 @@ def main():
     config = "examples/tf/config.yaml"
     model = TFModel(config)
 
-    model.train()
-    model.serve()
+    job_id = model.train()
+    model.serve(job_id=job_id)
 
 
 if __name__ == "__main__":

@@ -31,11 +31,12 @@ class BaseModel(abc.ABC):
     """Abstract class representing an ML model."""
 
     def __init__(self, config):
-        self.ml_client = discovery.build("ml", "v1")
         self._set_config(config)
+        self.ml_client = discovery.build("ml", "v1")
         self.model_dir = "models"
         # TODO(humichael): Move this to config and generate setup.py
         self.package_name = "ai-pipeline"
+        self.use_hpt = self._use_hpt()
 
     def _set_config(self, config_path):
         """Parses the given config file and sets instance variables accordingly."""
@@ -45,7 +46,8 @@ class BaseModel(abc.ABC):
         # TODO(humichael): Validate config
 
     # TODO(humichael): Move to utils
-    def _get_parent(self, model=False, version="", job="", operation=""):
+    def _get_parent(self, model=False, version="", job="",
+                    operation=""):
         """Returns the parent to pass to the CAIP API.
 
         Args:
@@ -71,6 +73,10 @@ class BaseModel(abc.ABC):
         elif operation:
             parent += "/operations/{}".format(operation)
         return parent
+
+    def _use_hpt(self):
+        """Determines if the training step uses hyperparameters"""
+        return self.hyperparameter["directory"] != "None"
 
     # TODO(humichael): Move to utils
     def _call_ml_client(self, request, silent_fail=False):
@@ -101,7 +107,8 @@ class BaseModel(abc.ABC):
 
     # TODO(humichael): find way to avoid using relative paths.
     @abc.abstractmethod
-    def _populate_trainer(self, task_template_path, model_template_path):
+    def _populate_trainer(self, task_template_path,
+                          model_template_path):
         """Use Jinja templates to generate model training code.
 
         Args:
@@ -120,7 +127,8 @@ class BaseModel(abc.ABC):
             f.write(task_file)
 
         model_template = env.get_template(model_template_path)
-        model_file = model_template.render(model_path=self.model["path"])
+        model_file = model_template.render(
+            model_path=self.model["path"])
         with open("trainer/model.py", "w+") as f:
             f.write(model_file)
 
@@ -128,6 +136,36 @@ class BaseModel(abc.ABC):
         """Returns the GCS path to the model dir."""
         return os.path.join(
             "gs://", self.bucket_id, self.model["name"], self.model_dir)
+
+    def _get_job_dir(self):
+        """Returns the GCS path to the job dir."""
+        return os.path.join(
+            "gs://", self.bucket_id, self.model["name"])
+
+    def _get_deployment_dir(self, job_id):
+        """Returns the GCS path to the TF exported model.
+
+        Args:
+            job_id: a CAIP job id.
+        """
+
+        # TODO(smhosein): combine job/model dir so that hpt and normal jobs
+        # have a similar path
+        if self.use_hpt:
+            # TODO(smhosein): if user wants to servre alone make job_id callable
+            name = self._get_parent(job=job_id)
+            request = self.ml_client.projects().jobs().get(
+                name=name).execute()
+            best_model = request["trainingOutput"]["trials"][0][
+                "trialId"]
+            output_path = os.path.join(self._get_job_dir(), best_model,
+                                       "export", "exporter")
+        else:
+            output_path = os.path.join(self._get_model_dir(), "export",
+                                       "exporter")
+        return str(subprocess.check_output(
+            ["gsutil", "ls", output_path]).strip()).split("\\n")[
+            -1].strip("'")
 
     def _wait_until_done(self, job_id, wait_interval=60):
         """Blocks until the given job is completed.
@@ -144,8 +182,9 @@ class BaseModel(abc.ABC):
         end_states = ["SUCCEEDED", "FAILED", "CANCELLED"]
         jobs_client = self.ml_client.projects().jobs()
 
-        print("Waiting for {} to complete. Checking every {} seconds.".format(
-            job_id, wait_interval))
+        print(
+            "Waiting for {} to complete. Checking every {} seconds.".format(
+                job_id, wait_interval))
         while state not in end_states:
             time.sleep(wait_interval)
             request = jobs_client.get(name=self._get_parent(job=job_id))
@@ -185,6 +224,8 @@ class BaseModel(abc.ABC):
                 completes.
             wait_interval: if blocking, how often the job state should be
                 checked.
+        Returns:
+            job_id: a CAIP job id.
         """
         now = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         job_id = "{}_{}".format(self.model["name"], now)
@@ -193,21 +234,90 @@ class BaseModel(abc.ABC):
         body = {
             "jobId": job_id,
             "trainingInput": {
-                "scaleTier": "BASIC",
+                "scaleTier": self.scale_tier,
                 "packageUris": [package_uri],
                 "pythonModule": "trainer.task",
                 "args": [
                     "--model_dir", self._get_model_dir(),
                 ],
+                "jobDir": self._get_job_dir(),
                 "region": self.region,
                 "runtimeVersion": self.runtime_version,
                 "pythonVersion": self.python_version,
             },
         }
-        request = jobs_client.create(parent=self._get_parent(), body=body)
+        # TODO(smhosein): should we handle custom scale tiers?
+        if self.use_hpt:
+            body["trainingInput"][
+                "hyperparameters"] = self._get_hyperparameters()
+        request = jobs_client.create(parent=self._get_parent(),
+                                     body=body)
         self._call_ml_client(request)
         if blocking:
             self._wait_until_done(job_id, wait_interval)
+        return job_id
+
+    def _get_hyperparameters(self):
+        """Generates a dictionary of hyperparameter values for the model."""
+        hp_config = parse_yaml(self.hyperparameter["directory"])
+        hp = hp_config["trainingInput"]["hyperparameters"]
+        hyperparams = {
+            "goal": hp["goal"] if "goal" in hp else "MAXIMIZE",
+            "hyperparameterMetricTag": hp["hyperparameterMetricTag"]
+            if "hyperparameterMetricTag" in hp else "accuracy",
+            "maxTrials": hp["maxTrials"]
+            if "maxTrials" in hp else 4,
+            "maxParallelTrials": hp["maxParallelTrials"]
+            if "maxParallelTrials" in hp else 1,
+            "enableTrialEarlyStopping": hp["enableTrialEarlyStopping"]
+            if "enableTrialEarlyStopping" in hp else True,
+            "params": [],
+        }
+        for param in hp["params"]:
+            if param["type"] in ("DOUBLE", "INTEGER"):
+                hyperparams["params"].append(
+                    self._get_double_int_param(param))
+            elif param["type"] == "CATEGORICAL":
+                hyperparams["params"].append(
+                    self._get_cat_distcrete_param(param,
+                                                  "categoricalValues"))
+            else:
+                hyperparams["params"].append(
+                    self._get_cat_distcrete_param(param,
+                                                  "discreteValues"))
+
+        return hyperparams
+
+    def _get_double_int_param(self, param):
+        """Get the values and ranges for an INTEGER or DOUBLE parameter.
+
+        Args:
+            param: dictionary containing, a description of the parameter
+        """
+        hyperparam = {
+            "parameterName": param["parameterName"],
+            "type": param["type"],
+            "minValue": param["minValue"],
+            "maxValue": param["maxValue"],
+            "scaleType": param["scaleType"],
+        }
+        return hyperparam
+
+    def _get_cat_distcrete_param(self, param, name):
+        """Get the categories/values for a CATEGORICAL or DISCRETE parameter.
+
+        Args:
+            param: dictionary containing, a description of the parameter
+            name: string indicating the type of parameter, i.e.
+            either categoricalValues or discreteValues
+        """
+
+        hyperparam = {
+            "parameterName": param["parameterName"],
+            "type": param["type"],
+            name: param[name]
+        }
+        return hyperparam
 
     def train_local(self):
         """Trains the model locally."""
@@ -236,21 +346,25 @@ class BaseModel(abc.ABC):
         done = False
         op_client = self.ml_client.projects().operations()
 
-        print("Waiting for {} to complete. Checking every {} seconds.".format(
-            op_name, wait_interval))
+        print(
+            "Waiting for {} to complete. Checking every {} seconds.".format(
+                op_name, wait_interval))
         while not done:
             time.sleep(wait_interval)
-            request = op_client.get(name=self._get_parent(operation=op_name))
+            request = op_client.get(
+                name=self._get_parent(operation=op_name))
             response, _ = self._call_ml_client(request)
             done = "done" in response and response["done"]
             print("Operation {} completed: {}".format(op_name, done))
 
-    def _create_version(self, version, framework, wait_interval=30):
+    def _create_version(self, version, framework, job_id,
+                        wait_interval=30):
         """Creates a new version of the model for serving.
 
         Args:
             version: a version number to use to create a version name.
             framework: the framework enum value to pass to the API.
+            job_id: a CAIP job id.
             wait_interval: if blocking, how often the job state should be
                 checked.
 
@@ -261,7 +375,7 @@ class BaseModel(abc.ABC):
         name = "{}_{}".format(self.model["name"], version)
         body = {
             "name": name,
-            "deploymentUri": self._get_model_dir(),
+            "deploymentUri": self._get_deployment_dir(job_id),
             "runtimeVersion": self.runtime_version,
             "framework": framework,
             "pythonVersion": self.python_version,
@@ -282,16 +396,19 @@ class BaseModel(abc.ABC):
             model_exists: True if a served model exists.
         """
         versions_client = self.ml_client.projects().models().versions()
-        request = versions_client.list(parent=self._get_parent(model=True))
-        response, model_exists = self._call_ml_client(request, silent_fail=True)
+        request = versions_client.list(
+            parent=self._get_parent(model=True))
+        response, model_exists = self._call_ml_client(request,
+                                                      silent_fail=True)
         return response, model_exists
 
     @abc.abstractmethod
-    def serve(self, framework):
+    def serve(self, framework, job_id):
         """Serves model and returns the version name created.
 
         Args:
             framework: the framework enum value to pass to the API.
+            job_id: a CAIP job id.
 
         Returns:
             the name of the version just created.
@@ -307,7 +424,7 @@ class BaseModel(abc.ABC):
         else:
             self._create_model()
             version = 0
-        return self._create_version(version, framework)
+        return self._create_version(version, framework, job_id)
 
     # TODO(humichael): Add option to pass in csv/json file.
     def online_predict(self, inputs, version=""):
@@ -325,7 +442,8 @@ class BaseModel(abc.ABC):
         if version:
             name = self._get_parent(version=version)
         projects_client = self.ml_client.projects()
-        request = projects_client.predict(name=name, body={"instances": inputs})
+        request = projects_client.predict(name=name,
+                                          body={"instances": inputs})
         response, _ = self._call_ml_client(request)
         return response["predictions"]
 
@@ -352,8 +470,8 @@ class SklearnModel(BaseModel):
         super(SklearnModel, self)._populate_trainer(
             "sklearn_task.py", "sklearn_model.py")
 
-    def serve(self):
-        return super(SklearnModel, self).serve("SCIKIT_LEARN")
+    def serve(self, job_id):
+        return super(SklearnModel, self).serve("SCIKIT_LEARN", job_id)
 
 
 class TFModel(BaseModel):
@@ -364,10 +482,11 @@ class TFModel(BaseModel):
         self._populate_trainer()
 
     def _populate_trainer(self):
-        super(TFModel, self)._populate_trainer("tf_task.py", "tf_model.py")
+        super(TFModel, self)._populate_trainer("tf_task.py",
+                                               "tf_model.py")
 
-    def serve(self):
-        return super(TFModel, self).serve("TENSORFLOW")
+    def serve(self, job_id):
+        return super(TFModel, self).serve("TENSORFLOW", job_id)
 
 
 class XGBoostModel(BaseModel):
@@ -381,5 +500,5 @@ class XGBoostModel(BaseModel):
         super(XGBoostModel, self)._populate_trainer(
             "xgboost_task.py", "xgboost_model.py")
 
-    def serve(self):
-        return super(XGBoostModel, self).serve("XGBOOST")
+    def serve(self, job_id):
+        return super(XGBoostModel, self).serve("XGBOOST", job_id)

@@ -18,10 +18,27 @@ from ai_pipeline.models import TFModel
 
 def main():
     config = "examples/tf/config.yaml"
-    model = TFModel(config)
+    pred_input = [{"age": 25,
+                  "workclass": " Private",
+                  "education": " 11th",
+                  "education_num": 7,
+                  "marital_status":" Never-married",
+                  "occupation": " Machine-op-inspct",
+                  "relationship": " Own-child",
+                  "race": " Black",
+                  "gender": " Male",
+                  "capital_gain": 0,
+                  "capital_loss": 0,
+                  "hours_per_week": 40,
+                  "native_country": " United-States"}]
 
+    model = TFModel(config)
     job_id = model.train()
-    model.serve(job_id=job_id)
+    version = model.serve(job_id=job_id)
+    preds = model.online_predict(pred_input, version=version)
+
+    print("Features: {}".format(pred_input))
+    print("Predictions: {}".format(preds))
 
 
 if __name__ == "__main__":

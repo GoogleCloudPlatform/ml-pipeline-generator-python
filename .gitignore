@@ -3,6 +3,8 @@ venv/*
 models/*
 *.egg-info/
 dist/*
+*.tar.gz
 
 trainer/model.py
 trainer/task.py
+orchestration/pipeline.py

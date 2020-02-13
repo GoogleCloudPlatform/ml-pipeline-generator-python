@@ -30,11 +30,12 @@ from ai_pipeline.parsers import parse_yaml
 class BaseModel(abc.ABC):
     """Abstract class representing an ML model."""
 
-    def __init__(self, config):
+    def __init__(self, config, framework):
         self._set_config(config)
         self.ml_client = discovery.build("ml", "v1")
-        self.model_dir = "models"
+        self.framework = framework
         # TODO(humichael): Move this to config and generate setup.py
+        self.model_dir = "models"
         self.package_name = "ai-pipeline"
         self.use_hpt = self._use_hpt()
 
@@ -75,8 +76,8 @@ class BaseModel(abc.ABC):
         return parent
 
     def _use_hpt(self):
-        """Determines if the training step uses hyperparameters"""
-        return self.hyperparameter["directory"] != "None"
+        """Determines if the training step uses hyperparameters."""
+        return self.hyperparameter["directory"]
 
     # TODO(humichael): Move to utils
     def _call_ml_client(self, request, silent_fail=False):
@@ -116,7 +117,8 @@ class BaseModel(abc.ABC):
             model_template_path: path to model.py template.
         """
         loader = jinja.PackageLoader("ai_pipeline", "templates")
-        env = jinja.Environment(loader=loader)
+        env = jinja.Environment(loader=loader, trim_blocks=True,
+                                lstrip_blocks="True")
 
         task_template = env.get_template(task_template_path)
         task_file = task_template.render(
@@ -132,40 +134,19 @@ class BaseModel(abc.ABC):
         with open("trainer/model.py", "w+") as f:
             f.write(model_file)
 
-    def _get_model_dir(self):
+    def get_model_dir(self):
         """Returns the GCS path to the model dir."""
         return os.path.join(
             "gs://", self.bucket_id, self.model["name"], self.model_dir)
 
-    def _get_job_dir(self):
+    def get_job_dir(self):
         """Returns the GCS path to the job dir."""
         return os.path.join(
             "gs://", self.bucket_id, self.model["name"])
 
-    def _get_deployment_dir(self, job_id):
-        """Returns the GCS path to the TF exported model.
-
-        Args:
-            job_id: a CAIP job id.
-        """
-
-        # TODO(smhosein): combine job/model dir so that hpt and normal jobs
-        # have a similar path
-        if self.use_hpt:
-            # TODO(smhosein): if user wants to servre alone make job_id callable
-            name = self._get_parent(job=job_id)
-            request = self.ml_client.projects().jobs().get(
-                name=name).execute()
-            best_model = request["trainingOutput"]["trials"][0][
-                "trialId"]
-            output_path = os.path.join(self._get_job_dir(), best_model,
-                                       "export", "exporter")
-        else:
-            output_path = os.path.join(self._get_model_dir(), "export",
-                                       "exporter")
-        return str(subprocess.check_output(
-            ["gsutil", "ls", output_path]).strip()).split("\\n")[
-            -1].strip("'")
+    def _get_deployment_dir(self, *_):
+        """Returns the GCS path to the exported model."""
+        return self.get_model_dir()
 
     def _wait_until_done(self, job_id, wait_interval=60):
         """Blocks until the given job is completed.
@@ -201,7 +182,7 @@ class BaseModel(abc.ABC):
             "gs://", self.bucket_id, self.model["name"], "staging")
 
     # TODO(humichael): Move to utils.py
-    def _upload_trainer_dist(self):
+    def upload_trainer_dist(self):
         """Builds a source distribution and uploads it to GCS."""
         dist_dir = "dist"
         dist_file = "{}-1.0.tar.gz".format(self.package_name)
@@ -229,7 +210,7 @@ class BaseModel(abc.ABC):
         """
         now = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         job_id = "{}_{}".format(self.model["name"], now)
-        package_uri = self._upload_trainer_dist()
+        package_uri = self.upload_trainer_dist()
         jobs_client = self.ml_client.projects().jobs()
         body = {
             "jobId": job_id,
@@ -238,9 +219,9 @@ class BaseModel(abc.ABC):
                 "packageUris": [package_uri],
                 "pythonModule": "trainer.task",
                 "args": [
-                    "--model_dir", self._get_model_dir(),
+                    "--model_dir", self.get_model_dir(),
                 ],
-                "jobDir": self._get_job_dir(),
+                "jobDir": self.get_job_dir(),
                 "region": self.region,
                 "runtimeVersion": self.runtime_version,
                 "pythonVersion": self.python_version,
@@ -261,16 +242,18 @@ class BaseModel(abc.ABC):
         """Generates a dictionary of hyperparameter values for the model."""
         hp_config = parse_yaml(self.hyperparameter["directory"])
         hp = hp_config["trainingInput"]["hyperparameters"]
+        # TODO(smhosein): replace ifs with hp.get("key", "default value").
         hyperparams = {
             "goal": hp["goal"] if "goal" in hp else "MAXIMIZE",
-            "hyperparameterMetricTag": hp["hyperparameterMetricTag"]
-            if "hyperparameterMetricTag" in hp else "accuracy",
-            "maxTrials": hp["maxTrials"]
-            if "maxTrials" in hp else 4,
-            "maxParallelTrials": hp["maxParallelTrials"]
-            if "maxParallelTrials" in hp else 1,
-            "enableTrialEarlyStopping": hp["enableTrialEarlyStopping"]
-            if "enableTrialEarlyStopping" in hp else True,
+            "hyperparameterMetricTag": (hp["hyperparameterMetricTag"]
+                                        if "hyperparameterMetricTag" in hp
+                                        else "accuracy"),
+            "maxTrials": hp["maxTrials"] if "maxTrials" in hp else 4,
+            "maxParallelTrials": (hp["maxParallelTrials"]
+                                  if "maxParallelTrials" in hp else 1),
+            "enableTrialEarlyStopping": (hp["enableTrialEarlyStopping"]
+                                         if "enableTrialEarlyStopping" in hp
+                                         else True),
             "params": [],
         }
         for param in hp["params"]:
@@ -293,6 +276,9 @@ class BaseModel(abc.ABC):
 
         Args:
             param: dictionary containing, a description of the parameter
+
+        Returns:
+            A dict of hyperparameters.
         """
         hyperparam = {
             "parameterName": param["parameterName"],
@@ -310,6 +296,9 @@ class BaseModel(abc.ABC):
             param: dictionary containing, a description of the parameter
             name: string indicating the type of parameter, i.e.
             either categoricalValues or discreteValues
+
+        Returns:
+            A dict of hyperparameters.
         """
 
         hyperparam = {
@@ -357,13 +346,11 @@ class BaseModel(abc.ABC):
             done = "done" in response and response["done"]
             print("Operation {} completed: {}".format(op_name, done))
 
-    def _create_version(self, version, framework, job_id,
-                        wait_interval=30):
+    def _create_version(self, version, job_id, wait_interval=30):
         """Creates a new version of the model for serving.
 
         Args:
             version: a version number to use to create a version name.
-            framework: the framework enum value to pass to the API.
             job_id: a CAIP job id.
             wait_interval: if blocking, how often the job state should be
                 checked.
@@ -377,7 +364,7 @@ class BaseModel(abc.ABC):
             "name": name,
             "deploymentUri": self._get_deployment_dir(job_id),
             "runtimeVersion": self.runtime_version,
-            "framework": framework,
+            "framework": self.get_deploy_framework(),
             "pythonVersion": self.python_version,
         }
         request = versions_client.create(
@@ -393,7 +380,7 @@ class BaseModel(abc.ABC):
         Returns:
             response: the API response if a model exists, otherwise an object
                 containing the error message.
-            model_exists: True if a served model exists.
+            model_exists: True if a deployed model exists.
         """
         versions_client = self.ml_client.projects().models().versions()
         request = versions_client.list(
@@ -403,11 +390,17 @@ class BaseModel(abc.ABC):
         return response, model_exists
 
     @abc.abstractmethod
-    def serve(self, framework, job_id):
-        """Serves model and returns the version name created.
+    def get_deploy_framework(self):
+        pass
+
+    # TODO(humichael): Remove this once we've switched to deploy in examples.
+    def serve(self, job_id):
+        return self.deploy(job_id)
+
+    def deploy(self, job_id):
+        """Deploys model and returns the version name created.
 
         Args:
-            framework: the framework enum value to pass to the API.
             job_id: a CAIP job id.
 
         Returns:
@@ -424,15 +417,15 @@ class BaseModel(abc.ABC):
         else:
             self._create_model()
             version = 0
-        return self._create_version(version, framework, job_id)
+        return self._create_version(version, job_id)
 
     # TODO(humichael): Add option to pass in csv/json file.
     def online_predict(self, inputs, version=""):
-        """Uses a served model to get predictions for the given inputs.
+        """Uses a deployed model to get predictions for the given inputs.
 
         Args:
           inputs: a list of feature vectors.
-          version: the version name of the served model to use. If none is
+          version: the version name of the deployed model to use. If none is
               provided, the default version will be used.
 
         Returns:
@@ -463,42 +456,66 @@ class SklearnModel(BaseModel):
     """SklearnModel class."""
 
     def __init__(self, config):
-        super(SklearnModel, self).__init__(config)
+        super(SklearnModel, self).__init__(config, "sklearn")
         self._populate_trainer()
 
     def _populate_trainer(self):
         super(SklearnModel, self)._populate_trainer(
             "sklearn_task.py", "sklearn_model.py")
 
-    def serve(self, job_id):
-        return super(SklearnModel, self).serve("SCIKIT_LEARN", job_id)
+    def get_deploy_framework(self):
+        return "SCIKIT_LEARN"
 
 
 class TFModel(BaseModel):
     """TFModel class."""
 
     def __init__(self, config):
-        super(TFModel, self).__init__(config)
+        super(TFModel, self).__init__(config, "tensorflow")
         self._populate_trainer()
 
     def _populate_trainer(self):
         super(TFModel, self)._populate_trainer("tf_task.py",
                                                "tf_model.py")
 
-    def serve(self, job_id):
-        return super(TFModel, self).serve("TENSORFLOW", job_id)
+    def get_deploy_framework(self):
+        return "TENSORFLOW"
+
+    def _get_deployment_dir(self, job_id):
+        """Returns the GCS path to the TF exported model.
+
+        Args:
+            job_id: a CAIP job id.
+        """
+
+        # TODO(smhosein): combine job/model dir so that hpt and normal jobs
+        # have a similar path
+        if self.use_hpt:
+            # TODO(smhosein): if user wants to servre alone make job_id callable
+            name = self._get_parent(job=job_id)
+            request = self.ml_client.projects().jobs().get(
+                name=name).execute()
+            best_model = request["trainingOutput"]["trials"][0][
+                "trialId"]
+            output_path = os.path.join(self.get_job_dir(), best_model,
+                                       "export", "exporter")
+        else:
+            output_path = os.path.join(self.get_model_dir(), "export",
+                                       "exporter")
+        return str(subprocess.check_output(
+            ["gsutil", "ls", output_path]).strip()).split("\\n")[-1].strip("'")
 
 
 class XGBoostModel(BaseModel):
     """XGBoost class."""
 
     def __init__(self, config):
-        super(XGBoostModel, self).__init__(config)
+        super(XGBoostModel, self).__init__(config, "xgboost")
         self._populate_trainer()
 
     def _populate_trainer(self):
         super(XGBoostModel, self)._populate_trainer(
             "xgboost_task.py", "xgboost_model.py")
 
-    def serve(self, job_id):
-        return super(XGBoostModel, self).serve("XGBOOST", job_id)
+    def get_deploy_framework(self):
+        return "XGBOOST"

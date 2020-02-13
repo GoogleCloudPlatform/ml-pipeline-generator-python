@@ -12,24 +12,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Demo for scikit-learn AI Pipeline."""
+"""Demo for KubeFlow Pipelines."""
 from ai_pipeline.models import SklearnModel
+from ai_pipeline.pipelines import KfpPipeline
 
 
 def main():
     config = "examples/sklearn/config.yaml"
-    pred_input = [
-        [6.8, 2.8, 4.8, 1.4],
-        [6.0, 3.4, 4.5, 1.6],
-    ]
-
     model = SklearnModel(config)
-    job_id = model.train()
-    version = model.serve(job_id=job_id)
-    preds = model.online_predict(pred_input, version=version)
+    pipeline = KfpPipeline(model)
 
-    print("Features: {}".format(pred_input))
-    print("Predictions: {}".format(preds))
+    # define pipeline structure
+    train = pipeline.add_train_component()
+    pipeline.add_deploy_component(parent=train)
+
+    pipeline.print_structure()
+    pipeline.generate_pipeline()
 
 
 if __name__ == "__main__":

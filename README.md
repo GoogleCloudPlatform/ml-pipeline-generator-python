@@ -28,7 +28,7 @@ pip install -r requirements.txt
 ### Config file
 Update the information in `config.yaml`.
 
-## Demo
+## CAIP Demo
 This demo uses the scikit-learn model in `examples/sklearn/user_model.py` to
 create a training module to run on CAIP.
 
@@ -39,6 +39,17 @@ python -m examples.sklearn.demo
 Running this demo uses the config file to generate `bin/run.train.sh` along
 with `trainer/` code. Then, run `bin/run.train.sh` to train locally or
 `bin/run.train.sh cloud` to train on CAIP.
+
+## KFP Demo
+This demo uses the scikit-learn model in `examples/sklearn/user_model.py` to
+create KubeFlow Pipeline.
+
+```bash
+python -m examples.kfp.demo
+python -m orchestration.pipeline
+```
+
+This compiles a pipeline which can be uploaded to KubeFlow.
 
 ### Cleanup
 Delete the generated files by running `bin/cleanup.sh`.

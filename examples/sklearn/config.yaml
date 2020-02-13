@@ -3,12 +3,15 @@
 project_id: "cchatterjee-sandbox"
 bucket_id: "cchatterjee-sandbox"
 region: "us-central1"
+scale_tier: "STANDARD_1"
 # AI Platform runtime version (https://cloud.google.com/ml-engine/docs/runtime-version-list)
 runtime_version: "1.15"
 python_version: "3.7"
 model:
     name: "sklearn_demo_model"
     path: "examples.sklearn.sklearn_model"
+hyperparameter:
+    directory: ""
 args:
     - name: "model_dir"
       help: "Dir or bucket to save model files."

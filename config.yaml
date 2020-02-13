@@ -8,6 +8,8 @@ model:
     name: "demo_model"
     path: "examples.tf.tf_model"
     type: "tf"
+hyperparameter:
+    directory: ""
 args:
     - name: "model_dir"
       help: "Dir or bucket to save model files."

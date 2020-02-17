@@ -205,11 +205,12 @@ class BaseModel(abc.ABC):
                 completes.
             wait_interval: if blocking, how often the job state should be
                 checked.
+
         Returns:
             job_id: a CAIP job id.
         """
         now = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-        job_id = "{}_{}".format(self.model["name"], now)
+        job_id = "train_{}_{}".format(self.model["name"], now)
         package_uri = self.upload_trainer_dist()
         jobs_client = self.ml_client.projects().jobs()
         body = {
@@ -424,8 +425,8 @@ class BaseModel(abc.ABC):
         """Uses a deployed model to get predictions for the given inputs.
 
         Args:
-          inputs: a list of feature vectors.
-          version: the version name of the deployed model to use. If none is
+            inputs: a list of feature vectors.
+            version: the version name of the deployed model to use. If none is
               provided, the default version will be used.
 
         Returns:
@@ -440,11 +441,83 @@ class BaseModel(abc.ABC):
         response, _ = self._call_ml_client(request)
         return response["predictions"]
 
-    def batch_predict(self, inputs):
-        """Uses a saved model on GCS to make predictions."""
-        # [BLOCKED] until train() uses the python API instead of a script.
-        # create a Job with PredictionInput
-        pass
+    # TODO(humichael): Move to utils.py
+    def upload_pred_input_data(self, src):
+        """Uploads input data to GCS for prediction."""
+        inputs_dir = os.path.join(self._get_staging_dir(), "inputs")
+        if not tf.io.gfile.exists(inputs_dir):
+            tf.io.gfile.makedirs(inputs_dir)
+
+        src_name = os.path.basename(src)
+        dst = os.path.join(inputs_dir, src_name)
+        tf.io.gfile.copy(src, dst, overwrite=True)
+        return dst
+
+    def get_pred_output_path(self):
+        """Returns the path prediction outputs are written to."""
+        return os.path.join(self._get_staging_dir(), "outputs")
+
+    def supports_batch_predict(self):
+        """Returns True if CAIP supports batch prediction for this model."""
+        return True
+
+    def batch_predict(self, inputs, version="", blocking=True,
+                      wait_interval=60,
+                      input_data_format="DATA_FORMAT_UNSPECIFIED",
+                      output_data_format="JSON"):
+        """Uses a deployed model on GCS to create a prediction job.
+
+        Note: Batch prediction only supports Tensorflow models.
+
+        Args:
+            inputs: a GSC path or list of paths to model inputs.
+            version: the version name of the deployed model to use. If none is
+              provided, the default version will be used.
+            blocking: true if the function should exit only once the job
+                completes.
+            wait_interval: if blocking, how often the job state should be
+                checked.
+            input_data_format: a DataFormat enum for the input format.
+            output_data_format: a DataFormat enum for the output format.
+
+        Returns:
+            job_id: a CAIP job id.
+
+        Raises:
+            RuntimeError: if batch prediction is not supported.
+        """
+        if not self.supports_batch_predict():
+            raise RuntimeError("Batch predict not supported for this model.")
+        if not isinstance(inputs, list):
+            inputs = [inputs]
+        now = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+        job_id = "predict_{}_{}".format(self.model["name"], now)
+        jobs_client = self.ml_client.projects().jobs()
+        body = {
+            "jobId": job_id,
+            "predictionInput": {
+                "dataFormat": input_data_format,
+                "outputDataFormat": output_data_format,
+                "inputPaths": [inputs],
+                "maxWorkerCount": "10",
+                "region": self.region,
+                "batchSize": "64",
+                "outputPath": self.get_pred_output_path(),
+            },
+        }
+        if version:
+            version = self._get_parent(version=version)
+            body["predictionInput"]["versionName"] = version
+        else:
+            model = self._get_parent(model=True)
+            body["predictionInput"]["modelName"] = model
+
+        request = jobs_client.create(parent=self._get_parent(),
+                                     body=body)
+        self._call_ml_client(request)
+        if blocking:
+            self._wait_until_done(job_id, wait_interval)
+        return job_id
 
     # TODO(humichael): clean up with python code, not a shell script.
     def clean_up(self):
@@ -465,6 +538,10 @@ class SklearnModel(BaseModel):
 
     def get_deploy_framework(self):
         return "SCIKIT_LEARN"
+
+    def supports_batch_predict(self):
+        """Returns True if CAIP supports batch prediction for this model."""
+        return False
 
 
 class TFModel(BaseModel):
@@ -519,3 +596,7 @@ class XGBoostModel(BaseModel):
 
     def get_deploy_framework(self):
         return "XGBOOST"
+
+    def supports_batch_predict(self):
+        """Returns True if CAIP supports batch prediction for this model."""
+        return False

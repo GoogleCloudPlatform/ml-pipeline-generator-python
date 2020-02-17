@@ -133,7 +133,7 @@ class KfpPipeline(BasePipeline):
         package_uri = model.upload_trainer_dist()
         params = {
             "project_id": model.project_id,
-            "job_id_prefix": self.job_id,
+            "job_id_prefix": "train_{}".format(self.job_id),
             "training_input": {
                 "scaleTier": model.scale_tier,
                 "packageUris": [package_uri],

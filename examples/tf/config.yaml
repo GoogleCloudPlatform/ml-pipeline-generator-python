@@ -22,7 +22,7 @@ args:
       help: "GCS or local paths to evaluation data"
       type: str
       default: "gs://cloud-samples-data/ml-engine/census/data/adult.test.csv"
-    - name: "job-dir"
+    - name: "model_dir"
       help: "GCS location to write checkpoints and export models"
       type: str
       default: "gs://cchatterjee-sandbox/tf_model_demo_v1"
@@ -70,3 +70,8 @@ args:
       help: "Logging information"
       type: str
       default: "INFO"
+predictions:
+    input_data_paths:
+        - "gs://cchatterjee-sandbox/tf_model_demo_v1/inputs/*"
+    input_format: "JSON"
+    output_format: "JSON"

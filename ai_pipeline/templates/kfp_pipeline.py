@@ -51,7 +51,6 @@ def get_train_op(github_url, prev_op_id=""):
     params = {{train_params}}
     {% endfilter %}
 
-    # TODO(humichael): Determine if this is needed.
     params["job_id_prefix"] += prev_op_id
     mlengine_train_op = kfp.components.load_component_from_url(
         "{}/ml_engine/train/component.yaml".format(github_url))
@@ -60,7 +59,6 @@ def get_train_op(github_url, prev_op_id=""):
     return train_op
 
 
-# TODO(humichael): Support best model if HP Tuning.
 def get_model_path(prev_op_id="") -> NamedTuple("params", [
         ("model_path", str),
         ("stub", str),
@@ -70,8 +68,18 @@ def get_model_path(prev_op_id="") -> NamedTuple("params", [
     return (model_path, prev_op_id)
 
 
+def get_model_path_op(prev_op_id):
+    """Returns a component for getting the model path."""
+    model_path_op = make_op_func(get_model_path)(prev_op_id)
+    list_blobs = kfp.components.load_component(
+        "orchestration/components/list_blobs.yaml")
+    gsutil_op = list_blobs(model_path_op.outputs["model_path"]).apply(
+        gcp.use_gcp_secret("user-gcp-sa"))
+    return gsutil_op
+
+
 def get_deploy_op(github_url, prev_op_id=""):
-    """Returns an op for running AI Platform batch prediction jobs.
+    """Returns an op for deploying models on CAIP.
 
     Args:
       github_url: url to the github commit the component definition will be
@@ -80,7 +88,7 @@ def get_deploy_op(github_url, prev_op_id=""):
         components together.
 
     Returns:
-      A Kubeflow Pipelines component for running batch predictions.
+      A Kubeflow Pipelines component for deploying models.
     """
 
     {% filter indent(width=4, indentfirst=False) %}
@@ -89,23 +97,44 @@ def get_deploy_op(github_url, prev_op_id=""):
 
     params["version_id"] = prev_op_id
     if "model_uri" not in params:
-        model_path_op = make_op_func(get_model_path)(prev_op_id)
-        list_blobs = kfp.components.load_component(
-            "orchestration/components/list_blobs.yaml")
-        gsutil_op = list_blobs(model_path_op.outputs["model_path"]).apply(
-            gcp.use_gcp_secret("user-gcp-sa"))
+        gsutil_op = get_model_path_op(prev_op_id)
         params["model_uri"] = gsutil_op.output
 
-    mlengine_batch_predict_op = kfp.components.load_component_from_url(
+    mlengine_deploy_op = kfp.components.load_component_from_url(
         "{}/ml_engine/deploy/component.yaml".format(github_url))
+    deploy_op = mlengine_deploy_op(**params).apply(
+        gcp.use_gcp_secret("user-gcp-sa"))
+    return deploy_op
+
+
+def get_predict_op(github_url, prev_op_id="", version_name=""):
+    """Returns an op for running AI Platform batch prediction jobs.
+
+    Args:
+      github_url: url to the github commit the component definition will be
+        read from.
+      prev_op_id: an output from a previous component to use to chain
+        components together.
+      version_name: a version name of a deployed model to predict with.
+
+    Returns:
+      A Kubeflow Pipelines component for running batch predictions.
+    """
+
+    {% filter indent(width=4, indentfirst=False) %}
+    params = {{prediction_params}}
+    {% endfilter %}
+
+    if prev_op_id:
+        gsutil_op = get_model_path_op(prev_op_id)
+        params["model_path"] = gsutil_op.output
+    elif version_name:
+        params["model_path"] = version_name
+    mlengine_batch_predict_op = kfp.components.load_component_from_url(
+        "{}/ml_engine/batch_predict/component.yaml".format(github_url))
     predict_op = mlengine_batch_predict_op(**params).apply(
         gcp.use_gcp_secret("user-gcp-sa"))
     return predict_op
-
-
-# TODO(humichael): Implement after supporting batch prediction.
-def get_predict_op():
-    pass
 
 
 @kfp.dsl.pipeline(
@@ -116,11 +145,13 @@ def train_pipeline():
     github_url = ("https://raw.githubusercontent.com/kubeflow/pipelines/"
                   + "02c991dd265054b040265b3dfa1903d5b49df859/components/gcp")
 
-    # TODO(humichael): Add keyword arguments.
+    # TODO(humichael): Add params.
     {% for p, c in relations %}
         {% set parent = components[p] %}
         {% set parent_name = "{}_{}_op".format(parent.role, parent.id) %}
         {% set parent_func = "get_{}_op".format(parent.role) %}
+        {% set parent_out = "version_name" if parent.role == "deploy" else "job_id" %}
+        {% set connection = "version_name" if parent.role == "deploy" and child.role == "predict" else "prev_op_id" %}
         {% set child = components[c] %}
         {% set child_name = "{}_{}_op".format(child.role, child.id) %}
         {% set child_func = "get_{}_op".format(child.role) %}
@@ -130,7 +161,7 @@ def train_pipeline():
         {% else %}
     {{ child_name }} = {{ child_func }}(
         github_url,
-        prev_op_id={{ parent_name }}.outputs["job_id"],
+        {{ connection }}={{ parent_name }}.outputs["{{ parent_out }}"],
     )
         {% endif %}
     {% endfor %}

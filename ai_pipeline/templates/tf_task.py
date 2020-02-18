@@ -72,6 +72,13 @@ def _get_session_config_from_env_var():
     return None
 
 
+def _get_trial_id():
+    """Returns the trial id if it exists, else "0"."""
+    trial_id = json.loads(
+        os.environ.get("TF_CONFIG", "{}")).get("task", {}).get("trial", "")
+    return trial_id if trial_id else "1"
+
+
 def train_and_evaluate(args):
     """Run the training and evaluate using the high level API."""
 
@@ -107,7 +114,9 @@ def train_and_evaluate(args):
 
     run_config = tf.estimator.RunConfig(
         session_config=_get_session_config_from_env_var())
-    run_config = run_config.replace(model_dir=args.job_dir)
+    trial_id = _get_trial_id()
+    model_dir = os.path.join(args.model_dir, trial_id)
+    run_config = run_config.replace(model_dir=model_dir)
     print('Model dir %s' % run_config.model_dir)
     estimator = model.build_estimator(
         embedding_size=args.embedding_size,

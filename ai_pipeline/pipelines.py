@@ -15,6 +15,7 @@
 """Pipeline class definitions."""
 import abc
 import json
+import os
 
 import datetime as dt
 import jinja2 as jinja
@@ -26,7 +27,7 @@ class _Component(object):
     def __init__(self, role, comp_id, params=None):
         self.role = role
         self.id = comp_id
-        # TODO(humichael): support params
+        # TODO(humichael): support children reading parent's params.
         self.params = params if params else {}
         self.children = []
 
@@ -75,13 +76,14 @@ class BasePipeline(abc.ABC):
         self.size += 1
         return component
 
-    def add_predict_component(self, parent=None, model=None, version=None):
+    def add_predict_component(self, parent=None, version=None,
+                              wait_interval=None):
         """Adds a predict component after the specified parent."""
         if not parent:
             parent = self.structure
         params = {
-            "model_id": model,
-            "version_id": version,
+            "version": version,
+            "wait_interval": wait_interval,
         }
         params = {k: v for k, v in params.items() if v is not None}
 
@@ -163,6 +165,31 @@ class KfpPipeline(BasePipeline):
             params["model_uri"] = model.get_model_dir()
         return json.dumps(params, indent=4)
 
+    def _get_predict_params(self):
+        """Returns parameters for predicting on CAIP."""
+        model = self.model
+        if not model.supports_batch_predict():
+            raise RuntimeError("Batch predict not supported for this model.")
+        inputs = model.predictions["input_data_paths"]
+        if not isinstance(inputs, list):
+            inputs = [inputs]
+        input_format = (model.predictions["input_format"]
+                        if "input_format" in model.predictions
+                        else "DATA_FORMAT_UNSPECIFIED")
+        output_format = (model.predictions["output_format"]
+                         if "output_format" in model.predictions else "JSON")
+        params = {
+            "project_id": model.project_id,
+            "model_path": model.get_parent(model=True),
+            "input_paths": inputs,
+            "input_data_format": input_format,
+            "output_path": model.get_pred_output_path(),
+            "region": model.region,
+            "output_data_format": output_format,
+            "job_id_prefix": "train_{}".format(self.job_id),
+        }
+        return json.dumps(params, indent=4)
+
     def generate_pipeline(self):
         """Creates the files to compile a pipeline."""
         loader = jinja.PackageLoader("ai_pipeline", "templates")
@@ -170,12 +197,18 @@ class KfpPipeline(BasePipeline):
                                 lstrip_blocks="True")
         components, relations = self.to_graph()
 
+        model = self.model
+        model_dir = model.get_model_dir()
+        if model.framework == "tensorflow":
+            # TODO(humichael): Need custom component to get best model.
+            model_dir = os.path.join(model_dir, "1", "export", "exporter")
+
         pipeline_template = env.get_template("kfp_pipeline.py")
         pipeline_file = pipeline_template.render(
             train_params=self._get_train_params(),
-            # TODO(humichael): TF may have an export dir unlike sklearn.
-            model_dir=self.model.get_model_dir(),
+            model_dir=model_dir,
             deploy_params=self._get_deploy_params(),
+            prediction_params=self._get_predict_params(),
             components=components,
             relations=relations,
         )

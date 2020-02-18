@@ -19,6 +19,15 @@ import os
 from ai_pipeline.models import TFModel
 
 
+def _upload_input_data_to_gcs(model, data):
+    input_path = "./tf_input_data.json"
+    with open(input_path, "w+") as f:
+        for features in data:
+            f.write(json.dumps(features) + "\n")
+    model.upload_pred_input_data(input_path)
+    os.remove(input_path)
+
+
 def main():
     config = "examples/tf/config.yaml"
     pred_input = [{
@@ -46,14 +55,8 @@ def main():
     print("Features: {}".format(pred_input))
     print("Predictions: {}".format(preds))
 
-    input_path = "./tf_input_data.json"
-    with open(input_path, "w+") as f:
-        for features in pred_input:
-            f.write(json.dumps(features) + "\n")
-    input_gcs_path = model.upload_pred_input_data(input_path)
-    os.remove(input_path)
-    model.batch_predict(input_gcs_path, version=version,
-                        input_data_format="JSON")
+    _upload_input_data_to_gcs(model, pred_input)
+    model.batch_predict(version=version)
 
     print("Batch predictions written to", model.get_pred_output_path())
 

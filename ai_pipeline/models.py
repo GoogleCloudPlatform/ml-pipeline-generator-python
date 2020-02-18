@@ -47,8 +47,8 @@ class BaseModel(abc.ABC):
         # TODO(humichael): Validate config
 
     # TODO(humichael): Move to utils
-    def _get_parent(self, model=False, version="", job="",
-                    operation=""):
+    def get_parent(self, model=False, version="", job="",
+                   operation=""):
         """Returns the parent to pass to the CAIP API.
 
         Args:
@@ -168,7 +168,7 @@ class BaseModel(abc.ABC):
                 job_id, wait_interval))
         while state not in end_states:
             time.sleep(wait_interval)
-            request = jobs_client.get(name=self._get_parent(job=job_id))
+            request = jobs_client.get(name=self.get_parent(job=job_id))
             response, _ = self._call_ml_client(request)
             state = response["state"]
             print("Job state of {}: {}".format(job_id, state))
@@ -232,7 +232,7 @@ class BaseModel(abc.ABC):
         if self.use_hpt:
             body["trainingInput"][
                 "hyperparameters"] = self._get_hyperparameters()
-        request = jobs_client.create(parent=self._get_parent(),
+        request = jobs_client.create(parent=self.get_parent(),
                                      body=body)
         self._call_ml_client(request)
         if blocking:
@@ -263,12 +263,12 @@ class BaseModel(abc.ABC):
                     self._get_double_int_param(param))
             elif param["type"] == "CATEGORICAL":
                 hyperparams["params"].append(
-                    self._get_cat_distcrete_param(param,
-                                                  "categoricalValues"))
+                    self._get_cat_discrete_param(param,
+                                                 "categoricalValues"))
             else:
                 hyperparams["params"].append(
-                    self._get_cat_distcrete_param(param,
-                                                  "discreteValues"))
+                    self._get_cat_discrete_param(param,
+                                                 "discreteValues"))
 
         return hyperparams
 
@@ -290,7 +290,7 @@ class BaseModel(abc.ABC):
         }
         return hyperparam
 
-    def _get_cat_distcrete_param(self, param, name):
+    def _get_cat_discrete_param(self, param, name):
         """Get the categories/values for a CATEGORICAL or DISCRETE parameter.
 
         Args:
@@ -322,7 +322,7 @@ class BaseModel(abc.ABC):
             "onlinePredictionLogging": True,
         }
         request = models_client.create(
-            parent=self._get_parent(), body=body)
+            parent=self.get_parent(), body=body)
         self._call_ml_client(request)
 
     def _wait_until_op_done(self, op_name, wait_interval=30):
@@ -342,7 +342,7 @@ class BaseModel(abc.ABC):
         while not done:
             time.sleep(wait_interval)
             request = op_client.get(
-                name=self._get_parent(operation=op_name))
+                name=self.get_parent(operation=op_name))
             response, _ = self._call_ml_client(request)
             done = "done" in response and response["done"]
             print("Operation {} completed: {}".format(op_name, done))
@@ -369,7 +369,7 @@ class BaseModel(abc.ABC):
             "pythonVersion": self.python_version,
         }
         request = versions_client.create(
-            parent=self._get_parent(model=True), body=body)
+            parent=self.get_parent(model=True), body=body)
         op, _ = self._call_ml_client(request)
         op_name = op["name"].split("/")[-1]
         self._wait_until_op_done(op_name, wait_interval)
@@ -385,7 +385,7 @@ class BaseModel(abc.ABC):
         """
         versions_client = self.ml_client.projects().models().versions()
         request = versions_client.list(
-            parent=self._get_parent(model=True))
+            parent=self.get_parent(model=True))
         response, model_exists = self._call_ml_client(request,
                                                       silent_fail=True)
         return response, model_exists
@@ -432,9 +432,9 @@ class BaseModel(abc.ABC):
         Returns:
             a list of predictions.
         """
-        name = self._get_parent(model=True)
+        name = self.get_parent(model=True)
         if version:
-            name = self._get_parent(version=version)
+            name = self.get_parent(version=version)
         projects_client = self.ml_client.projects()
         request = projects_client.predict(name=name,
                                           body={"instances": inputs})
@@ -444,7 +444,7 @@ class BaseModel(abc.ABC):
     # TODO(humichael): Move to utils.py
     def upload_pred_input_data(self, src):
         """Uploads input data to GCS for prediction."""
-        inputs_dir = os.path.join(self._get_staging_dir(), "inputs")
+        inputs_dir = os.path.join(self.get_job_dir(), "inputs")
         if not tf.io.gfile.exists(inputs_dir):
             tf.io.gfile.makedirs(inputs_dir)
 
@@ -455,30 +455,26 @@ class BaseModel(abc.ABC):
 
     def get_pred_output_path(self):
         """Returns the path prediction outputs are written to."""
-        return os.path.join(self._get_staging_dir(), "outputs")
+        return os.path.join(self.get_job_dir(), "outputs")
 
     def supports_batch_predict(self):
         """Returns True if CAIP supports batch prediction for this model."""
         return True
 
-    def batch_predict(self, inputs, version="", blocking=True,
-                      wait_interval=60,
-                      input_data_format="DATA_FORMAT_UNSPECIFIED",
-                      output_data_format="JSON"):
+    def batch_predict(self, job_id="", version="", blocking=True,
+                      wait_interval=60):
         """Uses a deployed model on GCS to create a prediction job.
 
         Note: Batch prediction only supports Tensorflow models.
 
         Args:
-            inputs: a GSC path or list of paths to model inputs.
+            job_id: the job_id of a training job to use for batch prediction.
             version: the version name of the deployed model to use. If none is
               provided, the default version will be used.
             blocking: true if the function should exit only once the job
                 completes.
             wait_interval: if blocking, how often the job state should be
                 checked.
-            input_data_format: a DataFormat enum for the input format.
-            output_data_format: a DataFormat enum for the output format.
 
         Returns:
             job_id: a CAIP job id.
@@ -488,31 +484,40 @@ class BaseModel(abc.ABC):
         """
         if not self.supports_batch_predict():
             raise RuntimeError("Batch predict not supported for this model.")
+        inputs = self.predictions["input_data_paths"]
         if not isinstance(inputs, list):
             inputs = [inputs]
+        input_format = (self.predictions["input_format"]
+                        if "input_format" in self.predictions
+                        else "DATA_FORMAT_UNSPECIFIED")
+        output_format = (self.predictions["output_format"]
+                         if "output_format" in self.predictions else "JSON")
         now = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         job_id = "predict_{}_{}".format(self.model["name"], now)
         jobs_client = self.ml_client.projects().jobs()
         body = {
             "jobId": job_id,
             "predictionInput": {
-                "dataFormat": input_data_format,
-                "outputDataFormat": output_data_format,
-                "inputPaths": [inputs],
+                "dataFormat": input_format,
+                "outputDataFormat": output_format,
+                "inputPaths": inputs,
                 "maxWorkerCount": "10",
                 "region": self.region,
                 "batchSize": "64",
                 "outputPath": self.get_pred_output_path(),
             },
         }
-        if version:
-            version = self._get_parent(version=version)
+        if job_id:
+            body["predictionInput"]["uri"] = self._get_deployment_dir(job_id)
+            body["predictionInput"]["runtimeVersion"] = self.runtime_version
+        elif version:
+            version = self.get_parent(version=version)
             body["predictionInput"]["versionName"] = version
         else:
-            model = self._get_parent(model=True)
+            model = self.get_parent(model=True)
             body["predictionInput"]["modelName"] = model
 
-        request = jobs_client.create(parent=self._get_parent(),
+        request = jobs_client.create(parent=self.get_parent(),
                                      body=body)
         self._call_ml_client(request)
         if blocking:
@@ -564,21 +569,16 @@ class TFModel(BaseModel):
         Args:
             job_id: a CAIP job id.
         """
-
-        # TODO(smhosein): combine job/model dir so that hpt and normal jobs
-        # have a similar path
+        best_model = "1"
         if self.use_hpt:
-            # TODO(smhosein): if user wants to servre alone make job_id callable
-            name = self._get_parent(job=job_id)
+            # TODO(smhosein): if user wants to serve alone make job_id callable
+            name = self.get_parent(job=job_id)
             request = self.ml_client.projects().jobs().get(
                 name=name).execute()
             best_model = request["trainingOutput"]["trials"][0][
                 "trialId"]
-            output_path = os.path.join(self.get_job_dir(), best_model,
-                                       "export", "exporter")
-        else:
-            output_path = os.path.join(self.get_model_dir(), "export",
-                                       "exporter")
+        output_path = os.path.join(self.get_model_dir(), best_model,
+                                   "export", "exporter")
         return str(subprocess.check_output(
             ["gsutil", "ls", output_path]).strip()).split("\\n")[-1].strip("'")
 

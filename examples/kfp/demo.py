@@ -13,18 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Demo for KubeFlow Pipelines."""
-from ai_pipeline.models import SklearnModel
+from ai_pipeline.models import TFModel
 from ai_pipeline.pipelines import KfpPipeline
 
 
 def main():
-    config = "examples/sklearn/config.yaml"
-    model = SklearnModel(config)
+    config = "examples/tf/config.yaml"
+    model = TFModel(config)
     pipeline = KfpPipeline(model)
 
     # define pipeline structure
-    train = pipeline.add_train_component()
-    pipeline.add_deploy_component(parent=train)
+    p = pipeline.add_train_component()
+    pipeline.add_deploy_component(parent=p)
+    pipeline.add_predict_component(parent=p)
 
     pipeline.print_structure()
     pipeline.generate_pipeline()

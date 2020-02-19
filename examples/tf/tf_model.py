@@ -12,32 +12,48 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Train a simple TF classifier for MNIST dataset."""
+"""Train a simple TF classifier for census dataset."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
-import tensorflow as tf
+import argparse
+
+import tensorflow.compat.v1 as tf
+
+from examples.preprocess.census_preprocess import load_data
 
 
-def get_data():
-    mnist = tf.keras.datasets.mnist
-    (x_train, y_train), _ = mnist.load_data()
-    return [x_train / 255.0, y_train]
-
-
-def get_model(args={}):
+def get_model(inputs, params):
     """Trains a classifier on iris data."""
-    model = tf.keras.models.Sequential([
-      tf.keras.layers.Flatten(input_shape=(28, 28)),
-      tf.keras.layers.Dense(128, activation="relu"),
-      tf.keras.layers.Dropout(0.2),
-      tf.keras.layers.Dense(10, activation="softmax")
-    ])
-    model.compile(optimizer="adam",
-                  loss="sparse_categorical_crossentropy",
+    dense = tf.keras.layers.Dense
+    nn = dense(params.first_layer_size, activation="relu",
+               kernel_initializer="uniform")(inputs)
+    for i in reversed(range(1, params.num_layers)):
+        layer_size = int(params.first_layer_size * (i / params.num_layers))
+        nn = dense(max(1, layer_size), activation="relu")(nn)
+    logits = dense(1, activation="sigmoid")(nn)
+
+    return logits
+
+
+# TODO(humichael): create get_predicition and get_evaluation instead.
+def get_loss():
+    """The loss function to use."""
+    return tf.losses.sigmoid_cross_entropy
+
+
+def main():
+    """Trains a model locally to test get_model() and get_loss()."""
+    train_x, train_y, _, _ = load_data()
+    input_layer = tf.keras.layers.Input(shape=(train_x.shape[1],))
+    params = argparse.Namespace(first_layer_size=50, num_layers=5)
+    predictions = get_model(input_layer, params)
+    model = tf.keras.models.Model(inputs=input_layer, outputs=predictions)
+    model.compile(optimizer="adam", loss=get_loss(),
                   metrics=["accuracy"])
-    return model
+    model.fit(train_x, train_y, epochs=1)
 
 
 if __name__ == "__main__":
-    data, target = get_data()
-    model = get_model()
-    model.fit(data, target, epochs=1)
+    main()

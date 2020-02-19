@@ -15,12 +15,17 @@
 """Demo for KubeFlow Pipelines."""
 from ai_pipeline.models import TFModel
 from ai_pipeline.pipelines import KfpPipeline
+from examples.preprocess.census_preprocess import load_data
 
 
 def main():
     config = "examples/tf/config.yaml"
     model = TFModel(config)
+    model.generate_files()
     pipeline = KfpPipeline(model)
+
+    # preprocess and upload dataset to expected location.
+    load_data(model.data["train"], model.data["evaluation"])
 
     # define pipeline structure
     p = pipeline.add_train_component()

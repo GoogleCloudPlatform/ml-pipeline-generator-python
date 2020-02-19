@@ -170,14 +170,14 @@ class KfpPipeline(BasePipeline):
         model = self.model
         if not model.supports_batch_predict():
             raise RuntimeError("Batch predict not supported for this model.")
-        inputs = model.predictions["input_data_paths"]
+        pred_info = model.data["prediction"]
+        inputs = pred_info["input_data_paths"]
         if not isinstance(inputs, list):
             inputs = [inputs]
-        input_format = (model.predictions["input_format"]
-                        if "input_format" in model.predictions
+        input_format = (pred_info["input_format"] if "input_format" in pred_info
                         else "DATA_FORMAT_UNSPECIFIED")
-        output_format = (model.predictions["output_format"]
-                         if "output_format" in model.predictions else "JSON")
+        output_format = (pred_info["output_format"]
+                         if "output_format" in pred_info else "JSON")
         params = {
             "project_id": model.project_id,
             "model_path": model.get_parent(model=True),
@@ -201,7 +201,7 @@ class KfpPipeline(BasePipeline):
         model_dir = model.get_model_dir()
         if model.framework == "tensorflow":
             # TODO(humichael): Need custom component to get best model.
-            model_dir = os.path.join(model_dir, "1", "export", "exporter")
+            model_dir = os.path.join(model_dir, "1", "export", "export")
 
         pipeline_template = env.get_template("kfp_pipeline.py")
         pipeline_file = pipeline_template.render(

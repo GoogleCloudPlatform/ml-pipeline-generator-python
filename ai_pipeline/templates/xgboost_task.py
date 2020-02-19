@@ -14,59 +14,140 @@
 """Executes model training and evaluation."""
 
 import argparse
-import logging
 import os
 import sys
-import xgboost as xgb
+import json
+import logging
 
 from trainer import model
-from trainer import utils
-from {{model_path}} import get_data
 
 
+def _get_trial_id():
+    """Returns the trial id if it exists, else "0"."""
+    trial_id = json.loads(
+        os.environ.get("TF_CONFIG", "{}")).get("task", {}).get("trial",
+                                                               "")
+    return trial_id if trial_id else "1"
+
+# Parse arguments
 def _parse_arguments(argv):
-    """Parses execution arguments and replaces default values.
-
-    Args:
-      argv: Input arguments from sys.
-
-    Returns:
-      Dictionary of parsed arguments.
-    """
     parser = argparse.ArgumentParser()
-    {% for arg in args %}
     parser.add_argument(
-        "--{{arg.name}}",
-        help="{{arg.help}}",
-        default="{{arg.default}}")
-    {% endfor %}
-    args, _ = parser.parse_known_args(args=argv[1:])
+        '--TRAIN_FILE',
+        help='Location of the training file',
+        default='tmp/train.csv',
+        type=str
+    )
+    parser.add_argument(
+        '--TEST_FILE',
+        help='Location of the test file',
+        default='tmp/test.csv',
+        type=str
+    )
+    parser.add_argument(
+        "--output_dir",
+        help="Output directory for exporting model and other metadata.",
+        default="tmp",
+        type=str
+    )
+    parser.add_argument(
+        "--job-dir",
+        help="Not used, but needed for AI Platform.",
+        default="",
+    )
+    parser.add_argument(
+        '--max_depth',
+        help='Maximum depth of the XGBoost tree.',
+        default=3,
+        type=int
+    )
+    parser.add_argument(
+        '--n_estimators',
+        help='Number of estimators to be created.',
+        default=2,
+        type=int
+    )
+    parser.add_argument(
+        '--booster',
+        help='which booster to use: gbtree, gblinear or dart.',
+        default='gbtree',
+        type=str
+    )
+    parser.add_argument(
+        '--min_child_weight',
+        help='Minimum sum of instance weight (hessian) needed in a child',
+        default=1,
+        type=int
+    )
+    parser.add_argument(
+        '--learning_rate',
+        help='Step size shrinkage used in update to prevents overfitting',
+        default=0.3,
+        type=int
+    )
+    parser.add_argument(
+        '--gamma',
+        help='Minimum loss reduction required to make a further partition on a leaf node of the tree',
+        default=0,
+        type=int
+    )
+    parser.add_argument(
+        '--subsample',
+        help='Subsample ratio of the training instances',
+        default=1,
+        type=int
+    )
+    parser.add_argument(
+        '--colsample_bytree',
+        help='subsample ratio of columns when constructing each tree',
+        default=1,
+        type=int
+    )
+    parser.add_argument(
+        '--reg_alpha',
+        help='L1 regularization term on weights. Increasing this value will make model more conservative',
+        default=0,
+        type=int
+    )
+    parser.add_argument(
+        "--log_level",
+        help="Logging level.",
+        choices=[
+            "DEBUG",
+            "ERROR",
+            "FATAL",
+            "INFO",
+            "WARN",
+        ],
+        default="INFO",
+    )
+    parser.add_argument(
+        "--model_dir",
+        help="Not currently used.",
+        default="",
+    )
+    args = parser.parse_args()
     return args
 
 
-def _train_and_evaluate(estimator, dataset, output_dir):
-    """Runs model training and evaluation."""
-    x_train, y_train = dataset
-    estimator.fit(x_train, y_train)
-
-    model_output_path = os.path.join(output_dir, "model.joblib")
-    utils.dump_object(estimator, model_output_path)
-    print("Model written to {}".format(model_output_path))
-
-
-def run_experiment(args):
-    """Testbed for running model training and evaluation."""
-    dataset = get_data()
-    estimator = model.get_estimator(args)
-    _train_and_evaluate(estimator, dataset, args.model_dir)
-
-
-def main():
-    """Entry point."""
-    args = _parse_arguments(sys.argv)
-    logging.basicConfig(level="INFO")
-    run_experiment(args)
-
+# ------------------------------------------------------------------
 
 if __name__ == "__main__":
-    main()
+    args = _parse_arguments(sys.argv)
+
+    {% for arg in args %}
+        {% if arg.type|string == "str" %}
+    args.{{arg.name}} = "{{arg.value}}"
+    {% else %}
+    args.{{arg.name}} = {{arg.value}}
+        {% endif %}
+    {% endfor %}
+    logging.basicConfig(level=args.log_level.upper())
+
+    # Append trial_id to path
+    trial_id = _get_trial_id()
+    model_dir = os.path.join("{{model_dir}}", trial_id)
+    print('Model dir %s' % model_dir)
+
+    # Run the training job
+    model.train_and_evaluate(args, model_dir)

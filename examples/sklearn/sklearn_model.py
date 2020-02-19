@@ -12,25 +12,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Train a simple SVM classifier for Iris dataset."""
+"""Train a simple SVM classifier."""
 
-from sklearn import datasets
+import argparse
+import numpy as np
 from sklearn import svm
 
-
-def get_data():
-    iris = datasets.load_iris()
-    return [iris.data, iris.target]
+from examples.preprocess.census_preprocess import load_data
 
 
-def get_model(args={}):
-    """Trains a classifier on iris data."""
-    classifier = svm.SVC()
+def get_model(params):
+    """Trains a classifier."""
+    classifier = svm.SVC(C=params.C)
     return classifier
 
 
+def main():
+    """Trains a model locally to test get_model()."""
+    train_x, train_y, eval_x, eval_y = load_data()
+    train_y, eval_y = [np.ravel(x) for x in [train_y, eval_y]]
+    params = argparse.Namespace(C=1.0)
+    model = get_model(params)
+    model.fit(train_x, train_y)
+    score = model.score(eval_x, eval_y)
+    print(score)
+
+
 if __name__ == "__main__":
-    data, target = get_data()
-    model = get_model()
-    model.fit(data, target)
-    print(model)
+    main()

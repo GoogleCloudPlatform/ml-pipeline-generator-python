@@ -14,7 +14,7 @@
 """ML model definitions."""
 from {{model_path}} import get_model
 
-def get_estimator(flags):
+def get_estimator(params):
     """Returns a SKLearn model."""
-    estimator = get_model(flags)
+    estimator = get_model(params)
     return estimator

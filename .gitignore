@@ -5,6 +5,8 @@ models/*
 dist/*
 *.tar.gz
 
+setup.py
 trainer/model.py
 trainer/task.py
+trainer/inputs.py
 orchestration/pipeline.py

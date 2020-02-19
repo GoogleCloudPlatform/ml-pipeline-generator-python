@@ -1,0 +1,14 @@
+trainingInput:
+  scaleTier: STANDARD_1
+  hyperparameters:
+    goal: MAXIMIZE
+    maxTrials: 2
+    maxParallelTrials: 2
+    hyperparameterMetricTag: score
+    enableTrialEarlyStopping: TRUE
+    params:
+    - parameterName: C
+      type: DOUBLE
+      minValue: .001
+      maxValue: 10
+      scaleType: UNIT_LOG_SCALE

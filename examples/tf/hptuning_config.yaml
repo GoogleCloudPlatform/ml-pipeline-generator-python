@@ -1,16 +1,17 @@
 trainingInput:
   hyperparameters:
-    goal: MAXIMIZE
     hyperparameterMetricTag: accuracy
+    goal: MAXIMIZE
     maxTrials: 4
     maxParallelTrials: 2
+    enableTrialEarlyStopping: True
     params:
-      - parameterName: first-layer-size
+      - parameterName: first_layer_size
         type: INTEGER
         minValue: 50
         maxValue: 500
         scaleType: UNIT_LINEAR_SCALE
-      - parameterName: num-layers
+      - parameterName: num_layers
         type: INTEGER
         minValue: 1
         maxValue: 15

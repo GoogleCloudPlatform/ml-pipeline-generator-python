@@ -1,0 +1,25 @@
+trainingInput:
+  hyperparameters:
+    goal: MAXIMIZE
+    maxTrials: 4
+    maxParallelTrials: 2
+    hyperparameterMetricTag: roc_auc
+    enableTrialEarlyStopping: TRUE
+    params:
+      - parameterName: max_depth
+        type: INTEGER
+        minValue: 3
+        maxValue: 8
+        scaleType: UNIT_LINEAR_SCALE
+      - parameterName: n_estimators
+        type: INTEGER
+        minValue: 1
+        maxValue: 20
+        scaleType: UNIT_LINEAR_SCALE
+      - parameterName: booster
+        type: CATEGORICAL
+        categoricalValues: [
+          "gbtree",
+          "gblinear",
+          "dart"
+        ]

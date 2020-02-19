@@ -17,8 +17,14 @@ import json
 import os
 
 from ai_pipeline.models import TFModel
+from examples.preprocess.census_preprocess import load_data
 
 
+def _upload_data_to_gcs(model):
+    load_data(model.data["train"], model.data["evaluation"])
+
+
+# TODO(humichael): See if there's a way to support csv batch predicts.
 def _upload_input_data_to_gcs(model, data):
     input_path = "./tf_input_data.json"
     with open(input_path, "w+") as f:
@@ -31,24 +37,25 @@ def _upload_input_data_to_gcs(model, data):
 def main():
     config = "examples/tf/config.yaml"
     pred_input = [{
-        "age": 25,
-        "workclass": "Private",
-        "education": "11th",
-        "education_num": 7,
-        "marital_status": "Never-married",
-        "occupation": "Machine-op-inspct",
-        "relationship": "Own-child",
-        "race": " Black",
-        "gender": "Male",
-        "capital_gain": 0,
-        "capital_loss": 0,
-        "hours_per_week": 40,
-        "native_country": "United-States",
+        "age": 0.02599666,
+        "workclass": 6,
+        "education_num": 1.1365801,
+        "marital_status": 4,
+        "occupation": 0,
+        "relationship": 1,
+        "race": 4,
+        "capital_gain": 0.14693314,
+        "capital_loss": -0.21713187,
+        "hours_per_week": -0.034039237,
+        "native_country": 38,
+        "income_bracket": 0,
     }]
-
     model = TFModel(config)
-    job_id = model.train()
-    version = model.serve(job_id=job_id)
+    model.generate_files()
+    _upload_data_to_gcs(model)
+
+    job_id = model.train(tune=True)
+    version = model.deploy(job_id=job_id)
     preds = model.online_predict(pred_input, version=version)
 
     print("Online Predictions")

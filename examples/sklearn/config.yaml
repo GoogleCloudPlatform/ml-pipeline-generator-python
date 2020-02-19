@@ -4,15 +4,44 @@ project_id: "cchatterjee-sandbox"
 bucket_id: "cchatterjee-sandbox"
 region: "us-central1"
 scale_tier: "STANDARD_1"
-# AI Platform runtime version (https://cloud.google.com/ml-engine/docs/runtime-version-list)
 runtime_version: "1.15"
 python_version: "3.7"
+package_name: "ai_pipeline"
+
+data:
+    schema:
+        - "age"
+        - "workclass"
+        - "education_num"
+        - "marital_status"
+        - "occupation"
+        - "relationship"
+        - "race"
+        - "capital_gain"
+        - "capital_loss"
+        - "hours_per_week"
+        - "native_country"
+        - "income_bracket"
+    train: "gs://cchatterjee-sandbox/sklearn_model_demo_v1/data/adult.data.csv"
+    evaluation: "gs://cchatterjee-sandbox/sklearn_model_demo_v1/data/adult.test.csv"
+    prediction:
+        input_data_paths:
+            - "gs://cchatterjee-sandbox/sklearn_model_demo_v1/inputs/*"
+        input_format: "JSON"
+        output_format: "JSON"
+
 model:
-    name: "sklearn_demo_model"
+    name: "sklearn_model_demo_v1"
     path: "examples.sklearn.sklearn_model"
-hyperparameter:
-    directory: ""
-args:
-    - name: "model_dir"
-      help: "Dir or bucket to save model files."
-      default: "models"
+    target: "income_bracket"
+
+model_params:
+    input_args:
+        C:
+            type: "float"
+            help: "Regularization parameter, must be positive."
+            default: 1.0
+    hyperparam_config: "examples/sklearn/hptuning_config.yaml"
+
+orchestration:
+    kubeflow_url: ""

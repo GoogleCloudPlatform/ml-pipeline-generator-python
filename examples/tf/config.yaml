@@ -5,73 +5,52 @@ bucket_id: "cchatterjee-sandbox"
 region: "us-central1"
 # We will have to think how we want to handle custom, if we want to at all
 scale_tier: "STANDARD_1"
-# AI Platform runtime version (https://cloud.google.com/ml-engine/docs/runtime-version-list)
 runtime_version: "1.15"
 python_version: "3.7"
+package_name: "ai_pipeline"
+
+data:
+    schema:
+        - "age"
+        - "workclass"
+        - "education_num"
+        - "marital_status"
+        - "occupation"
+        - "relationship"
+        - "race"
+        - "capital_gain"
+        - "capital_loss"
+        - "hours_per_week"
+        - "native_country"
+        - "income_bracket"
+    train: "gs://cchatterjee-sandbox/tf_model_demo_v1/data/adult.data.csv"
+    evaluation: "gs://cchatterjee-sandbox/tf_model_demo_v1/data/adult.test.csv"
+    prediction:
+        input_data_paths:
+            - "gs://cchatterjee-sandbox/tf_model_demo_v1/inputs/*"
+        input_format: "JSON"
+        output_format: "JSON"
+
 model:
     name: "tf_model_demo_v1"
     path: "examples.tf.tf_model"
-hyperparameter:
-    directory: "examples/tf/hptuning_config.yaml"
-args:
-    - name: "train-files"
-      help: "GCS or local paths to training data"
-      type: str
-      default: "gs://cloud-samples-data/ml-engine/census/data/adult.data.csv"
-    - name: "eval-files"
-      help: "GCS or local paths to evaluation data"
-      type: str
-      default: "gs://cloud-samples-data/ml-engine/census/data/adult.test.csv"
-    - name: "model_dir"
-      help: "GCS location to write checkpoints and export models"
-      type: str
-      default: "gs://cchatterjee-sandbox/tf_model_demo_v1"
-    - name: "prefetch_buffer_size"
-      help: "Maximum number of input elements that will be buffered when prefetching"
-      type: int
-      default: "1024"
-    - name: "train-steps"
-      help: "Steps to run the training job for. If --num-epochs is not specified this must be. Otherwise the training job will run indefinitely."
-      type: int
-      default: 100
-    - name: "eval-steps"
-      help: "Number of steps to run evaluation for at each checkpoint"
-      type: int
-      default: 100
-    - name: "train-batch-size"
-      help: "Batch size for training steps"
-      type: int
-      default: 32
-    - name: "eval-batch-size"
-      help: "Batch size for evaluation steps"
-      type: int
-      default: 32
-    - name: "embedding-size"
-      help: "Number of embedding dimensions for categorical columns"
-      type: int
-      default: 8
-    - name: "first-layer-size"
-      help: "Number of nodes in the first layer of the DNN"
-      type: int
-      default: 100
-    - name: "num-layers"
-      help: "Number of layers in the DNN"
-      type: int
-      default: 4
-    - name: "scale-factor"
-      help: "How quickly should the size of the layers in the DNN decay"
-      type: float
-      default: 0.7
-    - name: "export-format"
-      help: "The input format of the exported SavedModel binary"
-      type: str
-      default: "JSON"
-    - name: "verbosity"
-      help: "Logging information"
-      type: str
-      default: "INFO"
-predictions:
-    input_data_paths:
-        - "gs://cchatterjee-sandbox/tf_model_demo_v1/inputs/*"
-    input_format: "JSON"
-    output_format: "JSON"
+    target: "income_bracket"
+    metrics:
+        - "accuracy"
+
+model_params:
+    input_args:
+        first_layer_size:
+            type: "int"
+            help: "Size of the NN first layer."
+            default: 50
+        num_layers:
+            type: "int"
+            help: "Number of layers in the NN."
+            default: 5
+        max_steps:
+            default: 1000
+    hyperparam_config: "examples/tf/hptuning_config.yaml"
+
+orchestration:
+    kubeflow_url: ""

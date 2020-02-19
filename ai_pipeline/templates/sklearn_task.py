@@ -1,3 +1,4 @@
+# python3
 # Copyright 2020 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,14 +15,18 @@
 """Executes model training and evaluation."""
 
 import argparse
+import json
 import logging
 import os
-from pathlib import Path
 import sys
 
+import hypertune
+import numpy as np
+from sklearn import model_selection
+
+from trainer import inputs
 from trainer import model
 from trainer import utils
-from {{model_path}} import get_data
 
 
 def _parse_arguments(argv):
@@ -34,38 +39,64 @@ def _parse_arguments(argv):
       Dictionary of parsed arguments.
     """
     parser = argparse.ArgumentParser()
-    {% for arg in args %}
+
+    # TODO(humichael): Make this into modular template.
+    {% for name, arg in input_args.items() %}
     parser.add_argument(
-        "--{{arg.name}}",
+        "--{{name}}",
         help="{{arg.help}}",
-        default="{{arg.default}}")
+        type={{arg.type}},
+        {% if arg.type == "str" and "default" in arg %}
+        default="{{arg.default}}",
+        {% elif "default" in arg %}
+        default={{arg.default}},
+        {% endif %}
+    )
     {% endfor %}
+
     args, _ = parser.parse_known_args(args=argv[1:])
     return args
 
 
-def _train_and_evaluate(estimator, dataset, output_dir):
+# TODO(humichael): Evaluate the results.
+def _train_and_evaluate(estimator, dataset, model_dir, params):
     """Runs model training and evaluation."""
-    x_train, y_train = dataset
+    x_train, y_train, x_eval, y_eval = dataset
     estimator.fit(x_train, y_train)
 
-    model_output_path = os.path.join(output_dir, "model.joblib")
-    utils.dump_object(estimator, model_output_path)
-    print("Model written to {}".format(model_output_path))
+    model_path = os.path.join(model_dir, "model.joblib")
+    utils.dump_object(estimator, model_path)
+
+    scores = model_selection.cross_val_score(
+        estimator, x_eval, y_eval, cv=params.cross_validations)
+    metric_path = os.path.join(model_dir, "eval_metrics.joblib")
+    utils.dump_object(scores, metric_path)
+
+    hpt = hypertune.HyperTune()
+    hpt.report_hyperparameter_tuning_metric(
+        hyperparameter_metric_tag="score",
+        metric_value=np.mean(scores))
 
 
-def run_experiment(args):
+def _get_trial_id():
+    """Returns the trial id if it exists, else "0"."""
+    trial_id = json.loads(
+        os.environ.get("TF_CONFIG", "{}")).get("task", {}).get("trial", "")
+    return trial_id if trial_id else "1"
+
+
+def run_experiment(params):
     """Testbed for running model training and evaluation."""
-    dataset = get_data()
-    estimator = model.get_estimator(args)
-    _train_and_evaluate(estimator, dataset, args.model_dir)
+    dataset = inputs.download_data(params.train_path, params.eval_path)
+    estimator = model.get_estimator(params)
+    trial_id = _get_trial_id()
+    model_dir = os.path.join(params.model_dir, trial_id)
+    _train_and_evaluate(estimator, dataset, model_dir, params)
 
 
 def main():
     """Entry point."""
     args = _parse_arguments(sys.argv)
-    # TODO(humichael): Set log level in args in config
-    # logging.basicConfig(level=args.log_level.upper())
     logging.basicConfig(level="INFO")
     run_experiment(args)
 

@@ -1,15 +1,26 @@
 # Config file for AI Pipeline.
-
 project_id: "cchatterjee-sandbox"
 bucket_id: "cchatterjee-sandbox"
 region: "us-central1"
+scale_tier: "STANDARD_1"
 # AI Platform runtime version (https://cloud.google.com/ml-engine/docs/runtime-version-list)
 runtime_version: "1.15"
 python_version: "3.7"
 model:
-    name: "xgb_demo_model"
+    name: "smh_xgb_demo_v1"
     path: "examples.xgboost.xgboost_model"
+hyperparameter:
+    directory: "examples/xgboost/hptuning_config.yaml"
 args:
-    - name: "model_dir"
-      help: "Dir or bucket to save model files."
-      default: "models"
+    - name: "TRAIN_FILE"
+      type: str
+      value: "gs://cchatterjee-sandbox-caip/xgb_train.csv"
+    - name: "TEST_FILE"
+      type: str
+      value: "gs://cchatterjee-sandbox-caip/xgb_test.csv"
+    - name: "output_dir"
+      type: str
+      value: "gs://cchatterjee-sandbox/smh_xgb_demo_v1"
+    - name: "learning_rate"
+      type: int
+      value: 0.1

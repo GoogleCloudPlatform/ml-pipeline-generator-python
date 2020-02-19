@@ -14,18 +14,25 @@
 # limitations under the License.
 """Demo for scikit-learn AI Pipeline."""
 from ai_pipeline.models import SklearnModel
+from examples.preprocess.census_preprocess import load_data
+
+
+def _upload_data_to_gcs(model):
+    load_data(model.data["train"], model.data["evaluation"])
 
 
 def main():
     config = "examples/sklearn/config.yaml"
     pred_input = [
-        [6.8, 2.8, 4.8, 1.4],
-        [6.0, 3.4, 4.5, 1.6],
+        [0.02599666, 6, 1.1365801, 4, 0, 1, 4, 0.14693314, -0.21713187,
+         -0.034039237, 38],
     ]
-
     model = SklearnModel(config)
-    job_id = model.train()
-    version = model.serve(job_id=job_id)
+    model.generate_files()
+    _upload_data_to_gcs(model)
+
+    job_id = model.train(tune=True)
+    version = model.deploy(job_id=job_id)
     preds = model.online_predict(pred_input, version=version)
 
     print("Features: {}".format(pred_input))

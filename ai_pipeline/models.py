@@ -14,7 +14,9 @@
 # limitations under the License.
 """Model class definitions."""
 import abc
+import collections.abc
 import datetime as dt
+import json
 import os
 import subprocess
 import time
@@ -30,21 +32,71 @@ from ai_pipeline.parsers import parse_yaml
 class BaseModel(abc.ABC):
     """Abstract class representing an ML model."""
 
-    def __init__(self, config, framework):
+    def __init__(self, config_path, framework):
+        config = parse_yaml(config_path)
         self._set_config(config)
         self.ml_client = discovery.build("ml", "v1")
         self.framework = framework
-        # TODO(humichael): Move this to config and generate setup.py
-        self.model_dir = "models"
-        self.package_name = "ai-pipeline"
-        self.use_hpt = self._use_hpt()
 
-    def _set_config(self, config_path):
-        """Parses the given config file and sets instance variables accordingly."""
-        config = parse_yaml(config_path)
+    def _get_default_config(self):
+        return {
+            "model": {
+                "metrics": [],
+            },
+        }
+
+    def _deep_update(self, d, u):
+        """Updates a dict and any nested dicts within it."""
+        for k, v in u.items():
+            if isinstance(v, collections.abc.Mapping):
+                d[k] = self._deep_update(d.get(k, {}), v)
+            else:
+                d[k] = v
+        return d
+
+    def _set_config(self, new_config):
+        """Iterates through the config dict and sets instance variables."""
+        config = self._get_default_config()
+        config = self._deep_update(config, new_config)
         for key in config:
             setattr(self, key, config[key])
-        # TODO(humichael): Validate config
+        self._set_model_params(config)
+        # TODO(humichael): Validate config (required, metrics is one of...)
+
+    def _get_default_input_args(self, train_path, eval_path):
+        return {
+            "train_path": {
+                "type": "str",
+                "help": "Dir or bucket containing training data.",
+                "default": train_path,
+            },
+            "eval_path": {
+                "type": "str",
+                "help": "Dir or bucket containing eval data.",
+                "default": eval_path,
+            },
+            "model_dir": {
+                "type": "str",
+                "help": "Dir or bucket to save model files.",
+                "default": "models",
+            },
+        }
+
+    def _set_model_params(self, config):
+        """Sets the input args and updates self.model_dir."""
+        model_params = (config["model_params"]
+                        if "model_params" in config else {})
+        input_args = self._get_default_input_args(
+            train_path=config["data"]["train"],
+            eval_path=config["data"]["evaluation"],
+        )
+
+        if "input_args" in model_params:
+            new_input_args = model_params["input_args"]
+            input_args = self._deep_update(input_args, new_input_args)
+        self.model_params = model_params
+        self.model_params["input_args"] = input_args
+        self.model_dir = input_args["model_dir"]["default"]
 
     # TODO(humichael): Move to utils
     def get_parent(self, model=False, version="", job="",
@@ -75,10 +127,6 @@ class BaseModel(abc.ABC):
             parent += "/operations/{}".format(operation)
         return parent
 
-    def _use_hpt(self):
-        """Determines if the training step uses hyperparameters."""
-        return self.hyperparameter["directory"]
-
     # TODO(humichael): Move to utils
     def _call_ml_client(self, request, silent_fail=False):
         """Calls the CAIP API by executing the given request.
@@ -106,47 +154,102 @@ class BaseModel(abc.ABC):
             success = False
         return response, success
 
+    def _write_template(self, env, template_path, args, dest):
+        template = env.get_template(template_path)
+        body = template.render(**args)
+        with open(dest, "w+") as f:
+            f.write(body)
+
     # TODO(humichael): find way to avoid using relative paths.
     @abc.abstractmethod
-    def _populate_trainer(self, task_template_path,
-                          model_template_path):
+    def generate_files(self, task_template_path,
+                       model_template_path, inputs_template_path):
         """Use Jinja templates to generate model training code.
 
         Args:
             task_template_path: path to task.py template.
             model_template_path: path to model.py template.
+            inputs_template_path: path to inputs.py template.
         """
         loader = jinja.PackageLoader("ai_pipeline", "templates")
         env = jinja.Environment(loader=loader, trim_blocks=True,
                                 lstrip_blocks="True")
 
-        task_template = env.get_template(task_template_path)
-        task_file = task_template.render(
-            model_name=self.model["name"],
-            model_path=self.model["path"],
-            args=self.args)
-        with open("trainer/task.py", "w+") as f:
-            f.write(task_file)
+        task_args = {
+            "input_args": self.model_params["input_args"],
+        }
+        model_args = {
+            "model_path": self.model["path"],
+            "metrics": self.model["metrics"],
+        }
+        inputs_args = {
+            "schema": json.dumps(self.data["schema"], indent=4),
+            "target": self.model["target"],
+        }
+        setup_args = {"package_name": self.package_name}
 
-        model_template = env.get_template(model_template_path)
-        model_file = model_template.render(
-            model_path=self.model["path"])
-        with open("trainer/model.py", "w+") as f:
-            f.write(model_file)
-
-    def get_model_dir(self):
-        """Returns the GCS path to the model dir."""
-        return os.path.join(
-            "gs://", self.bucket_id, self.model["name"], self.model_dir)
+        self._write_template(env, task_template_path, task_args,
+                             "trainer/task.py")
+        self._write_template(env, model_template_path, model_args,
+                             "trainer/model.py")
+        self._write_template(env, inputs_template_path, inputs_args,
+                             "trainer/inputs.py")
+        self._write_template(env, "setup.py", setup_args, "setup.py")
 
     def get_job_dir(self):
         """Returns the GCS path to the job dir."""
-        return os.path.join(
-            "gs://", self.bucket_id, self.model["name"])
+        return os.path.join("gs://", self.bucket_id, self.model["name"])
 
-    def _get_deployment_dir(self, *_):
-        """Returns the GCS path to the exported model."""
-        return self.get_model_dir()
+    def get_model_dir(self):
+        """Returns the GCS path to the model dir."""
+        return os.path.join(self.get_job_dir(), self.model_dir)
+
+    def _get_best_trial(self, job_id):
+        """Returns the best trial id for a training job.
+
+        Args:
+            job_id: a CAIP job id.
+
+        Returns:
+            the trial number that performed the best.
+        """
+        name = self.get_parent(job=job_id)
+        request = self.ml_client.projects().jobs().get(name=name).execute()
+        best_trial = "1"
+        if "trials" in request["trainingOutput"]:
+            best_trial = request["trainingOutput"]["trials"][0]["trialId"]
+        return best_trial
+
+    def _get_deployment_dir(self, job_id):
+        """Returns the GCS path to the Sklearn exported model.
+
+        Args:
+            job_id: a CAIP job id.
+        """
+        best_trial = self._get_best_trial(job_id)
+        output_path = os.path.join(self.get_model_dir(), best_trial)
+        return output_path
+
+    def _get_staging_dir(self):
+        """Returns the GCS path to the staging dir."""
+        return os.path.join(
+            "gs://", self.bucket_id, self.model["name"], "staging")
+
+    # TODO(humichael): Move to utils.py
+    def upload_trainer_dist(self):
+        """Builds a source distribution and uploads it to GCS."""
+        dist_dir = "dist"
+        dist_file = "{}-1.0.tar.gz".format(self.package_name)
+        staging_dir = self._get_staging_dir()
+        subprocess.call(["python", "setup.py", "sdist"],
+                        stdout=open(os.devnull, "wb"))
+        if not tf.io.gfile.exists(staging_dir):
+            tf.io.gfile.makedirs(staging_dir)
+
+        src = os.path.join(dist_dir, dist_file)
+        dst = os.path.join(staging_dir, dist_file)
+        tf.io.gfile.copy(src, dst, overwrite=True)
+        return dst
 
     def _wait_until_done(self, job_id, wait_interval=60):
         """Blocks until the given job is completed.
@@ -176,31 +279,11 @@ class BaseModel(abc.ABC):
             raise RuntimeError(
                 "Job didn't succeed. End state: {}".format(state))
 
-    def _get_staging_dir(self):
-        """Returns the GCS path to the staging dir."""
-        return os.path.join(
-            "gs://", self.bucket_id, self.model["name"], "staging")
-
-    # TODO(humichael): Move to utils.py
-    def upload_trainer_dist(self):
-        """Builds a source distribution and uploads it to GCS."""
-        dist_dir = "dist"
-        dist_file = "{}-1.0.tar.gz".format(self.package_name)
-        staging_dir = self._get_staging_dir()
-        subprocess.call(["python", "setup.py", "sdist"],
-                        stdout=open(os.devnull, "wb"))
-        if not tf.io.gfile.exists(staging_dir):
-            tf.io.gfile.makedirs(staging_dir)
-
-        src = os.path.join(dist_dir, dist_file)
-        dst = os.path.join(staging_dir, dist_file)
-        tf.io.gfile.copy(src, dst, overwrite=True)
-        return dst
-
-    def train(self, blocking=True, wait_interval=60):
+    def train(self, tune=False, blocking=True, wait_interval=60):
         """Trains on CAIP.
 
         Args:
+            tune: train with hyperparameter tuning if true.
             blocking: true if the function should exit only once the job
                 completes.
             wait_interval: if blocking, how often the job state should be
@@ -229,85 +312,17 @@ class BaseModel(abc.ABC):
             },
         }
         # TODO(smhosein): should we handle custom scale tiers?
-        if self.use_hpt:
-            body["trainingInput"][
-                "hyperparameters"] = self._get_hyperparameters()
+        if tune:
+            hp_config = parse_yaml(self.model_params["hyperparam_config"])
+            hyperparams = hp_config["trainingInput"]["hyperparameters"]
+            body["trainingInput"]["hyperparameters"] = hyperparams
+
         request = jobs_client.create(parent=self.get_parent(),
                                      body=body)
         self._call_ml_client(request)
         if blocking:
             self._wait_until_done(job_id, wait_interval)
         return job_id
-
-    def _get_hyperparameters(self):
-        """Generates a dictionary of hyperparameter values for the model."""
-        hp_config = parse_yaml(self.hyperparameter["directory"])
-        hp = hp_config["trainingInput"]["hyperparameters"]
-        # TODO(smhosein): replace ifs with hp.get("key", "default value").
-        hyperparams = {
-            "goal": hp["goal"] if "goal" in hp else "MAXIMIZE",
-            "hyperparameterMetricTag": (hp["hyperparameterMetricTag"]
-                                        if "hyperparameterMetricTag" in hp
-                                        else "accuracy"),
-            "maxTrials": hp["maxTrials"] if "maxTrials" in hp else 4,
-            "maxParallelTrials": (hp["maxParallelTrials"]
-                                  if "maxParallelTrials" in hp else 1),
-            "enableTrialEarlyStopping": (hp["enableTrialEarlyStopping"]
-                                         if "enableTrialEarlyStopping" in hp
-                                         else True),
-            "params": [],
-        }
-        for param in hp["params"]:
-            if param["type"] in ("DOUBLE", "INTEGER"):
-                hyperparams["params"].append(
-                    self._get_double_int_param(param))
-            elif param["type"] == "CATEGORICAL":
-                hyperparams["params"].append(
-                    self._get_cat_discrete_param(param,
-                                                 "categoricalValues"))
-            else:
-                hyperparams["params"].append(
-                    self._get_cat_discrete_param(param,
-                                                 "discreteValues"))
-
-        return hyperparams
-
-    def _get_double_int_param(self, param):
-        """Get the values and ranges for an INTEGER or DOUBLE parameter.
-
-        Args:
-            param: dictionary containing, a description of the parameter
-
-        Returns:
-            A dict of hyperparameters.
-        """
-        hyperparam = {
-            "parameterName": param["parameterName"],
-            "type": param["type"],
-            "minValue": param["minValue"],
-            "maxValue": param["maxValue"],
-            "scaleType": param["scaleType"],
-        }
-        return hyperparam
-
-    def _get_cat_discrete_param(self, param, name):
-        """Get the categories/values for a CATEGORICAL or DISCRETE parameter.
-
-        Args:
-            param: dictionary containing, a description of the parameter
-            name: string indicating the type of parameter, i.e.
-            either categoricalValues or discreteValues
-
-        Returns:
-            A dict of hyperparameters.
-        """
-
-        hyperparam = {
-            "parameterName": param["parameterName"],
-            "type": param["type"],
-            name: param[name]
-        }
-        return hyperparam
 
     def train_local(self):
         """Trains the model locally."""
@@ -394,10 +409,6 @@ class BaseModel(abc.ABC):
     def get_deploy_framework(self):
         pass
 
-    # TODO(humichael): Remove this once we've switched to deploy in examples.
-    def serve(self, job_id):
-        return self.deploy(job_id)
-
     def deploy(self, job_id):
         """Deploys model and returns the version name created.
 
@@ -431,6 +442,9 @@ class BaseModel(abc.ABC):
 
         Returns:
             a list of predictions.
+
+        Raises:
+            RuntimeError: if the deployed model fails to make predictions.
         """
         name = self.get_parent(model=True)
         if version:
@@ -439,7 +453,10 @@ class BaseModel(abc.ABC):
         request = projects_client.predict(name=name,
                                           body={"instances": inputs})
         response, _ = self._call_ml_client(request)
-        return response["predictions"]
+        if "predictions" in response:
+            return response["predictions"]
+        print(response)
+        raise RuntimeError("Prediction failed.")
 
     # TODO(humichael): Move to utils.py
     def upload_pred_input_data(self, src):
@@ -484,19 +501,19 @@ class BaseModel(abc.ABC):
         """
         if not self.supports_batch_predict():
             raise RuntimeError("Batch predict not supported for this model.")
-        inputs = self.predictions["input_data_paths"]
+        pred_info = self.data["prediction"]
+        inputs = pred_info["input_data_paths"]
         if not isinstance(inputs, list):
             inputs = [inputs]
-        input_format = (self.predictions["input_format"]
-                        if "input_format" in self.predictions
+        input_format = (pred_info["input_format"] if "input_format" in pred_info
                         else "DATA_FORMAT_UNSPECIFIED")
-        output_format = (self.predictions["output_format"]
-                         if "output_format" in self.predictions else "JSON")
+        output_format = (pred_info["output_format"]
+                         if "output_format" in pred_info else "JSON")
         now = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-        job_id = "predict_{}_{}".format(self.model["name"], now)
+        predict_id = "predict_{}_{}".format(self.model["name"], now)
         jobs_client = self.ml_client.projects().jobs()
         body = {
-            "jobId": job_id,
+            "jobId": predict_id,
             "predictionInput": {
                 "dataFormat": input_format,
                 "outputDataFormat": output_format,
@@ -521,8 +538,8 @@ class BaseModel(abc.ABC):
                                      body=body)
         self._call_ml_client(request)
         if blocking:
-            self._wait_until_done(job_id, wait_interval)
-        return job_id
+            self._wait_until_done(predict_id, wait_interval)
+        return predict_id
 
     # TODO(humichael): clean up with python code, not a shell script.
     def clean_up(self):
@@ -535,11 +552,23 @@ class SklearnModel(BaseModel):
 
     def __init__(self, config):
         super(SklearnModel, self).__init__(config, "sklearn")
-        self._populate_trainer()
 
-    def _populate_trainer(self):
-        super(SklearnModel, self)._populate_trainer(
-            "sklearn_task.py", "sklearn_model.py")
+    def _get_default_input_args(self, train_path, eval_path):
+        args = super(SklearnModel, self)._get_default_input_args(
+            train_path, eval_path)
+        additional_args = {
+            "cross_validations": {
+                "type": "int",
+                "help": "Number of datasets to split to for cross validation.",
+                "default": 3,
+            },
+        }
+        args.update(additional_args)
+        return args
+
+    def generate_files(self):
+        super(SklearnModel, self).generate_files(
+            "sklearn_task.py", "sklearn_model.py", "sklearn_inputs.py")
 
     def get_deploy_framework(self):
         return "SCIKIT_LEARN"
@@ -554,31 +583,87 @@ class TFModel(BaseModel):
 
     def __init__(self, config):
         super(TFModel, self).__init__(config, "tensorflow")
-        self._populate_trainer()
 
-    def _populate_trainer(self):
-        super(TFModel, self)._populate_trainer("tf_task.py",
-                                               "tf_model.py")
+    def _get_default_input_args(self, train_path, eval_path):
+        args = super(TFModel, self)._get_default_input_args(
+            train_path, eval_path)
+        additional_args = {
+            "batch_size": {
+                "type": "int",
+                "help": "Number of rows of data fed to model each iteration.",
+                "default": 64,
+            },
+            "num_epochs": {
+                "type": "int",
+                "help": "Number of times to iterate over the dataset.",
+            },
+            "max_steps": {
+                "type": "int",
+                "help": "Maximum number of iterations to train the model for.",
+                "default": 500,
+            },
+            "learning_rate": {
+                "type": "float",
+                "help": "Model learning rate.",
+                "default": 0.0001,
+            },
+            "export_format": {
+                "type": "str",
+                "help": "File format expected at inference time.",
+                "default": "json",
+            },
+            "save_checkpoints_steps": {
+                "type": "int",
+                "help": "Steps to run before saving a model checkpoint.",
+                "default": 100,
+            },
+            "keep_checkpoint_max": {
+                "type": "int",
+                "help": "Number of model checkpoints to keep.",
+                "default": 2,
+            },
+            "log_step_count_steps": {
+                "type": "int",
+                "help": "Steps to run before logging training performance.",
+                "default": 100,
+            },
+            "eval_steps": {
+                "type": "int",
+                "help": "Number of steps to use to evaluate the model.",
+                "default": 20,
+            },
+            "early_stopping_steps": {
+                "type": "int",
+                "help": "Steps with no loss decrease before stopping early.",
+                "default": 1000,
+            },
+        }
+        args.update(additional_args)
+        return args
+
+    def generate_files(self):
+        super(TFModel, self).generate_files(
+            "tf_task.py", "tf_model.py", "tf_inputs.py")
+
+    # TODO(humichael): Support multiple model dirs.
+    def train(self, tune=False, blocking=True, wait_interval=60):
+        """Removes any previous checkpoints before training."""
+        if tf.io.gfile.exists(self.get_model_dir()):
+            tf.gfile.DeleteRecursively(self.get_model_dir())
+        return super(TFModel, self).train(tune, blocking, wait_interval)
 
     def get_deploy_framework(self):
         return "TENSORFLOW"
 
     def _get_deployment_dir(self, job_id):
-        """Returns the GCS path to the TF exported model.
+        """Returns the GCS path to the Sklearn exported model.
 
         Args:
             job_id: a CAIP job id.
         """
-        best_model = "1"
-        if self.use_hpt:
-            # TODO(smhosein): if user wants to serve alone make job_id callable
-            name = self.get_parent(job=job_id)
-            request = self.ml_client.projects().jobs().get(
-                name=name).execute()
-            best_model = request["trainingOutput"]["trials"][0][
-                "trialId"]
-        output_path = os.path.join(self.get_model_dir(), best_model,
-                                   "export", "exporter")
+        best_trial = self._get_best_trial(job_id)
+        output_path = os.path.join(
+            self.get_model_dir(), best_trial, "export", "export")
         return str(subprocess.check_output(
             ["gsutil", "ls", output_path]).strip()).split("\\n")[-1].strip("'")
 
@@ -588,11 +673,10 @@ class XGBoostModel(BaseModel):
 
     def __init__(self, config):
         super(XGBoostModel, self).__init__(config, "xgboost")
-        self._populate_trainer()
 
-    def _populate_trainer(self):
+    def generate_files(self):
         super(XGBoostModel, self)._populate_trainer(
-            "xgboost_task.py", "xgboost_model.py")
+            "xgboost_task.py", "xgboost_model.py", "xgboost_inputs.py")
 
     def get_deploy_framework(self):
         return "XGBOOST"

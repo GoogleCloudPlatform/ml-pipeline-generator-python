@@ -42,6 +42,3 @@ model_params:
             help: "Regularization parameter, must be positive."
             default: 1.0
     hyperparam_config: "examples/sklearn/hptuning_config.yaml"
-
-orchestration:
-    kubeflow_url: ""

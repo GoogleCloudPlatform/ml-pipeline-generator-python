@@ -18,8 +18,9 @@ from ai_pipeline.pipelines import KfpPipeline
 from examples.preprocess.census_preprocess import load_data
 
 
+# pylint: disable=g-import-not-at-top
 def main():
-    config = "examples/tf/config.yaml"
+    config = "examples/kfp/config.yaml"
     model = TFModel(config)
     model.generate_files()
     pipeline = KfpPipeline(model)
@@ -31,9 +32,11 @@ def main():
     p = pipeline.add_train_component()
     pipeline.add_deploy_component(parent=p)
     pipeline.add_predict_component(parent=p)
-
     pipeline.print_structure()
+
     pipeline.generate_pipeline()
+    from orchestration import pipeline as kfp_pipeline
+    kfp_pipeline.main()
 
 
 if __name__ == "__main__":

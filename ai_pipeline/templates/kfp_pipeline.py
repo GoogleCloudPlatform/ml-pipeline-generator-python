@@ -167,6 +167,14 @@ def train_pipeline():
     {% endfor %}
 
 
+def main(compile=False):
+    """Compile the pipeline and also create a run."""
+    if compile:
+        kfp.compiler.Compiler().compile(train_pipeline, "train_pipeline.tar.gz")
+
+    client = kfp.Client(host="{{ host }}")
+    client.create_run_from_pipeline_func(train_pipeline, arguments={})
+
+
 if __name__ == "__main__":
-    kfp.compiler.Compiler().compile(
-        train_pipeline, "train_pipeline.tar.gz")
+    main()

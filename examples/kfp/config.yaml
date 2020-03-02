@@ -51,3 +51,6 @@ model_params:
         max_steps:
             default: 1000
     hyperparam_config: "examples/tf/hptuning_config.yaml"
+
+orchestration:
+    host: "5e892ccf4c09b627-dot-us-central2.pipelines.googleusercontent.com"

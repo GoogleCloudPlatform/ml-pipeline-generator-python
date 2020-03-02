@@ -190,6 +190,12 @@ class KfpPipeline(BasePipeline):
         }
         return json.dumps(params, indent=4)
 
+    def _write_template(self, env, template_path, args, dest):
+        template = env.get_template(template_path)
+        body = template.render(**args)
+        with open(dest, "w+") as f:
+            f.write(body)
+
     def generate_pipeline(self):
         """Creates the files to compile a pipeline."""
         loader = jinja.PackageLoader("ai_pipeline", "templates")
@@ -203,14 +209,14 @@ class KfpPipeline(BasePipeline):
             # TODO(humichael): Need custom component to get best model.
             model_dir = os.path.join(model_dir, "1", "export", "export")
 
-        pipeline_template = env.get_template("kfp_pipeline.py")
-        pipeline_file = pipeline_template.render(
-            train_params=self._get_train_params(),
-            model_dir=model_dir,
-            deploy_params=self._get_deploy_params(),
-            prediction_params=self._get_predict_params(),
-            components=components,
-            relations=relations,
-        )
-        with open("orchestration/pipeline.py", "w+") as f:
-            f.write(pipeline_file)
+        pipeline_args = {
+            "train_params": self._get_train_params(),
+            "model_dir": model_dir,
+            "deploy_params": self._get_deploy_params(),
+            "prediction_params": self._get_predict_params(),
+            "components": components,
+            "relations": relations,
+            "host": model.orchestration["host"],
+        }
+        self._write_template(env, "kfp_pipeline.py", pipeline_args,
+                             "orchestration/pipeline.py")

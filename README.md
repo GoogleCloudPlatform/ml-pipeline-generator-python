@@ -28,6 +28,12 @@ pip install -r requirements.txt
 ### Config file
 Update the information in `config.yaml`.
 
+### Kubeflow
+Create a Kubeflow deployment using Cloud Marketplace.
+Follow these
+[instructions](https://github.com/kubeflow/pipelines/blob/master/manifests/gcp_marketplace/guide.md#gcp-service-account-credentials)
+to give the Kubeflow instance access to GCP services.
+
 ## CAIP Demo
 This demo uses the scikit-learn model in `examples/sklearn/user_model.py` to
 create a training module to run on CAIP.

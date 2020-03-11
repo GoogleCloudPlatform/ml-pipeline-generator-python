@@ -25,6 +25,7 @@ from googleapiclient import discovery
 from googleapiclient import errors
 import jinja2 as jinja
 import tensorflow.compat.v1 as tf
+from tensorflow.python.tools import saved_model_utils
 
 from ai_pipeline.parsers import parse_yaml
 
@@ -251,6 +252,40 @@ class BaseModel(abc.ABC):
         tf.io.gfile.copy(src, dst, overwrite=True)
         return dst
 
+    def _upload_metadata(self, path):
+        """Uploads the metadata file necessary to run CAIP explanations.
+
+        Args:
+            path: GCS path to the model's *.pb directory
+        """
+        inputs, outputs = {}, {}
+        meta_graph = saved_model_utils.get_meta_graph_def(path, "serve")
+        signature_def_key = "serving_default"
+
+        inputs_tensor_info = meta_graph.signature_def[
+            signature_def_key].inputs
+        outputs_tensor_info = meta_graph.signature_def[
+            signature_def_key].outputs
+
+        for feat, input_tensor in sorted(inputs_tensor_info.items()):
+            inputs[feat] = {"input_tensor_name": input_tensor.name}
+
+        for label, output_tensor in sorted(outputs_tensor_info.items()):
+            outputs[label] = {"output_tensor_name": output_tensor.name}
+
+        explanation_metadata = {
+            "inputs": inputs,
+            "outputs": outputs,
+            "framework": "tensorflow"
+        }
+
+        file_name = "explanation_metadata.json"
+        with open(file_name, 'w+') as output_file:
+            json.dump(explanation_metadata, output_file)
+
+        dst = os.path.join(path, file_name)
+        tf.io.gfile.copy(file_name, dst, overwrite=True)
+
     def _wait_until_done(self, job_id, wait_interval=60):
         """Blocks until the given job is completed.
 
@@ -362,12 +397,15 @@ class BaseModel(abc.ABC):
             done = "done" in response and response["done"]
             print("Operation {} completed: {}".format(op_name, done))
 
-    def _create_version(self, version, job_id, wait_interval=30):
+    def _create_version(self, version, job_id, explanations,
+                        wait_interval=30):
         """Creates a new version of the model for serving.
 
         Args:
             version: a version number to use to create a version name.
             job_id: a CAIP job id.
+            explanations: whether to create a model that can perform
+                CAIP explanations.
             wait_interval: if blocking, how often the job state should be
                 checked.
 
@@ -382,7 +420,15 @@ class BaseModel(abc.ABC):
             "runtimeVersion": self.runtime_version,
             "framework": self.get_deploy_framework(),
             "pythonVersion": self.python_version,
+            "machineType": self.machine_type_pred,
         }
+        if explanations:
+            exp = self.model_params["explain_output"]
+            exp_pm = exp["explain_param"]
+            body["explanationConfig"] = {
+                exp["explain_type"]: {exp_pm["name"]: exp_pm["value"]}
+            }
+            self._upload_metadata(self._get_deployment_dir(job_id))
         request = versions_client.create(
             parent=self.get_parent(model=True), body=body)
         op, _ = self._call_ml_client(request)
@@ -409,11 +455,13 @@ class BaseModel(abc.ABC):
     def get_deploy_framework(self):
         pass
 
-    def deploy(self, job_id):
+    def deploy(self, job_id, explanations=False):
         """Deploys model and returns the version name created.
 
         Args:
             job_id: a CAIP job id.
+            explanations: whether to create a model that can perform
+                CAIP explanations
 
         Returns:
             the name of the version just created.
@@ -429,7 +477,7 @@ class BaseModel(abc.ABC):
         else:
             self._create_model()
             version = 0
-        return self._create_version(version, job_id)
+        return self._create_version(version, job_id, explanations)
 
     # TODO(humichael): Add option to pass in csv/json file.
     def online_predict(self, inputs, version=""):
@@ -457,6 +505,33 @@ class BaseModel(abc.ABC):
             return response["predictions"]
         print(response)
         raise RuntimeError("Prediction failed.")
+
+    def online_explanations(self, inputs, version=""):
+        """Uses a deployed model to get explanations for the given inputs.
+
+        Args:
+            inputs: a list of feature vectors.
+            version: the version name of the deployed model to use. If none is
+                provided, the default version will be used.
+
+        Returns:
+            a list of explanations.
+
+        Raises:
+            RuntimeError: if the deployed model fails to make explanations.
+        """
+        name = self.get_parent(model=True)
+        if version:
+            name = self.get_parent(version=version)
+        projects_client = self.ml_client.projects()
+        request = projects_client.explain(name=name,
+                                          body={"instances": inputs})
+        response, _ = self._call_ml_client(request)
+
+        if "explanations" in response:
+            return response["explanations"]
+        print(response)
+        raise RuntimeError("Explanations failed.")
 
     # TODO(humichael): Move to utils.py
     def upload_pred_input_data(self, src):

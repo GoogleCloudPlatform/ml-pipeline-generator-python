@@ -35,6 +35,7 @@ def _upload_input_data_to_gcs(model, data):
 
 
 def main():
+    explanations = True
     config = "examples/tf/config.yaml"
     pred_input = [{
         "age": 0.02599666,
@@ -55,17 +56,23 @@ def main():
     _upload_data_to_gcs(model)
 
     job_id = model.train(tune=True)
-    version = model.deploy(job_id=job_id)
+    version = model.deploy(job_id=job_id, explanations=explanations)
+    if explanations:
+        explanations = model.online_explanations(pred_input,
+                                                 version=version)
+        print("Online Explanations")
+        print("Explanations: {}".format(explanations))
     preds = model.online_predict(pred_input, version=version)
 
     print("Online Predictions")
     print("Features: {}".format(pred_input))
     print("Predictions: {}".format(preds))
 
-    _upload_input_data_to_gcs(model, pred_input)
-    model.batch_predict(version=version)
-
-    print("Batch predictions written to", model.get_pred_output_path())
+    if not explanations:
+        _upload_input_data_to_gcs(model, pred_input)
+        model.batch_predict(version=version)
+        print("Batch predictions written to",
+              model.get_pred_output_path())
 
 
 if __name__ == "__main__":

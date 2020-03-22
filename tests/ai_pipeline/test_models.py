@@ -14,7 +14,6 @@
 # limitations under the License.
 """Unit tests for models classes."""
 import os
-import subprocess
 import unittest
 
 from ai_pipeline.models import BaseModel
@@ -66,7 +65,7 @@ class TestSklearnModel(unittest.TestCase):
         self.assertIn("task.py", trainer_files)
         self.assertIn("model.py", trainer_files)
 
-    @unittest.skip("Fails due to https://b.corp.google.com/issues/148144741")
+    @unittest.skip("How to test without running training?")
     def test_local_train(self):
         """Tests local training."""
         model = self.__class__.model

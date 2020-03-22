@@ -1,7 +1,7 @@
 # Config file for AI Pipeline.
 
-project_id: "cchatterjee-sandbox"
-bucket_id: "cchatterjee-sandbox"
+project_id: [PROJECT ID]
+bucket_id: [BUCKET ID]
 region: "us-central1"
 scale_tier: "STANDARD_1"
 runtime_version: "1.15"
@@ -22,16 +22,16 @@ data:
         - "hours_per_week"
         - "native_country"
         - "income_bracket"
-    train: "gs://cchatterjee-sandbox/sklearn_model_demo_v1/data/adult.data.csv"
-    evaluation: "gs://cchatterjee-sandbox/sklearn_model_demo_v1/data/adult.test.csv"
+    train: "gs://[BUCKET ID]/[MODEL NAME]/data/adult.data.csv"
+    evaluation: "gs://[BUCKET ID]/[MODEL NAME]/data/adult.test.csv"
     prediction:
         input_data_paths:
-            - "gs://cchatterjee-sandbox/sklearn_model_demo_v1/inputs/*"
+            - "gs://[BUCKET ID]/[MODEL NAME]/inputs/*"
         input_format: "JSON"
         output_format: "JSON"
 
 model:
-    name: "sklearn_model_demo_v1"
+    name: [MODEL NAME]
     path: "examples.sklearn.sklearn_model"
     target: "income_bracket"
 
@@ -42,3 +42,6 @@ model_params:
             help: "Regularization parameter, must be positive."
             default: 1.0
     hyperparam_config: "examples/sklearn/hptuning_config.yaml"
+
+orchestration:
+    host: [KFP URL]

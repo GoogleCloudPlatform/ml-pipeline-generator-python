@@ -4,6 +4,7 @@ models/*
 *.egg-info/
 dist/*
 *.tar.gz
+config.yaml
 
 setup.py
 trainer/model.py

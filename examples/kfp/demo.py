@@ -20,7 +20,7 @@ from examples.preprocess.census_preprocess import load_data
 
 # pylint: disable=g-import-not-at-top
 def main():
-    config = "examples/kfp/config.yaml"
+    config = "examples/tf/config.yaml"
     model = TFModel(config)
     model.generate_files()
     pipeline = KfpPipeline(model)
@@ -35,6 +35,8 @@ def main():
     pipeline.print_structure()
 
     pipeline.generate_pipeline()
+
+    # pylint: disable=import-outside-toplevel
     from orchestration import pipeline as kfp_pipeline
     kfp_pipeline.main()
 

@@ -1,0 +1,40 @@
+# Copyright 2020 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Reference for template generated pipeline steps
+hptune:
+  template_dir: "./templates/hptune"
+  files:
+    - input: 'component.yaml'
+      output: 'hptune/component.yaml'
+    - input: 'Dockerfile'
+      output: 'hptune/Dockerfile'
+    - input: 'build.sh'
+      output: 'hptune/build.sh'
+    - input: 'hptune.sh'
+      output: 'hptune/hptune.sh'
+
+
+get_tuned_params:
+  template_dir: "./templates/get_tuned_params"
+  files:
+    - input: 'component.yaml'
+      output: 'get_tuned_params/component.yaml'
+    - input: 'Dockerfile'
+      output: 'get_tuned_params/Dockerfile'
+    - input: 'build.sh'
+      output: 'get_tuned_params/build.sh'
+    - input: 'get_tuned_params.py'
+      output: 'get_tuned_params/get_tuned_params.py'
+

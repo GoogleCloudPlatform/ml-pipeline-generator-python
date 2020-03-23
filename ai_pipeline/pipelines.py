@@ -16,9 +16,14 @@
 import abc
 import json
 import os
+from os import path
+import pathlib
+import jinja2 as jinja
 
 import datetime as dt
-import jinja2 as jinja
+from ai_pipeline.parsers import NestedNamespace
+from ai_pipeline.parsers import parse_yaml
+from ai_pipeline.component_lib import generate_component
 
 
 class _Component(object):
@@ -38,13 +43,37 @@ class _Component(object):
 class BasePipeline(abc.ABC):
     """Abstract class representing an ML pipeline."""
 
-    def __init__(self, model):
+    def __init__(self, model=None, config=None):
         self.model = model
         self.structure = _Component("start", -1)
         self.size = 0
+        if config:
+            self.config = NestedNamespace(parse_yaml(config))
+        else:
+            self.config = config
+        if self.model:
+            now = dt.datetime.now().strftime("%y%m%d_%h%m%s")
+            self.job_id = "{}_{}".format(self.model.model["name"], now)
 
-        now = dt.datetime.now().strftime("%y%m%d_%h%m%s")
-        self.job_id = "{}_{}".format(self.model.model["name"], now)
+    def add_component(self, name, parent=None, params={}):
+        """Adds a generic component to the pipeline after the specified parent."""
+        if not parent:
+            parent = self.structure
+        params = self.config.__dict__[name]
+        if params.component == "AUTO":
+            generate_component(self.config, name)
+        component = _Component(name, self.size, params=params)
+        parent.add_child(component)
+        self.size += 1
+        return component
+
+    def list_components(self):
+        all_components = []
+        if self.config is not None:
+            for k, v in self.config.__dict__.items():
+                if hasattr(v, "component"):
+                    all_components.append(k)
+        print(all_components)
 
     def add_train_component(self, parent=None, wait_interval=None):
         """Adds a train component after the specified parent."""
@@ -74,6 +103,7 @@ class BasePipeline(abc.ABC):
         component = _Component("deploy", self.size, params=params)
         parent.add_child(component)
         self.size += 1
+
         return component
 
     def add_predict_component(self, parent=None, version=None,
@@ -207,6 +237,7 @@ class KfpPipeline(BasePipeline):
         model_dir = model.get_model_dir()
         if model.framework == "tensorflow":
             # TODO(humichael): Need custom component to get best model.
+            # VS: The componet is available
             model_dir = os.path.join(model_dir, "1", "export", "export")
 
         pipeline_args = {
@@ -220,3 +251,22 @@ class KfpPipeline(BasePipeline):
         }
         self._write_template(env, "kfp_pipeline.py", pipeline_args,
                              "orchestration/pipeline.py")
+
+    def generate_pipeline_from_config(self):
+        """Creates the files to compile a pipeline from config file."""
+        template_files = [
+            ("kfp_pipeline_from_config.py", "orchestration/pipeline.py"),
+            ("example_pipeline.ipynb", "orchestration/pipeline.ipynb")
+        ]
+        loader = jinja.PackageLoader("ai_pipeline", "templates")
+        env = jinja.Environment(loader=loader, trim_blocks=True,
+                                lstrip_blocks="True")
+        for in_file, out_file in template_files:
+            pipeline_template = env.get_template(in_file)
+            pipeline_file = pipeline_template.render(
+                config=self.config,
+            )
+            output_file = path.join(self.config.output_package, out_file)
+            pathlib.Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+            with open(output_file, "w+") as f:
+                f.write(pipeline_file)

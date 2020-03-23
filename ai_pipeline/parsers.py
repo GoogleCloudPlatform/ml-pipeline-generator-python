@@ -1,3 +1,4 @@
+# python3
 # Copyright 2020 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for parsing data sources."""
+from types import SimpleNamespace
 import yaml
 
 
@@ -20,3 +22,21 @@ def parse_yaml(path):
     with open(path, "r") as f:
         doc = f.read()
     return yaml.load(doc, Loader=yaml.FullLoader)
+
+
+class NestedNamespace(SimpleNamespace):
+    """Parse nested disctionary to create nested namespace object."""
+
+    def __init__(self, dictionary, **kwargs):
+        super(NestedNamespace, self).__init__(**kwargs)
+        for key, value in dictionary.items():
+            if isinstance(value, dict):
+                self.__setattr__(key, NestedNamespace(value))
+            elif isinstance(value, list):
+                self.__setattr__(key,
+                                 [NestedNamespace(i)
+                                  if isinstance(i, dict)
+                                  else i for i in value])
+            else:
+                self.__setattr__(key, value)
+

@@ -18,8 +18,43 @@ import os
 import sys
 import json
 import logging
+import hypertune
 
+from sklearn import metrics
+from sklearn import preprocessing
+
+from trainer import inputs
 from trainer import model
+from trainer import utils
+
+
+def _parse_arguments(argv):
+    """Parses execution arguments and replaces default values.
+
+    Args:
+      argv: Input arguments from sys.
+
+    Returns:
+      Dictionary of parsed arguments.
+    """
+    parser = argparse.ArgumentParser()
+
+    # TODO(humichael): Make this into modular template.
+    {% for name, arg in input_args.items() %}
+    parser.add_argument(
+        "--{{name}}",
+        help="{{arg.help}}",
+        type={{arg.type}},
+        {% if arg.type == "str" and "default" in arg %}
+        default="{{arg.default}}",
+        {% elif "default" in arg %}
+        default={{arg.default}},
+        {% endif %}
+    )
+    {% endfor %}
+
+    args, _ = parser.parse_known_args(args=argv[1:])
+    return args
 
 
 def _get_trial_id():
@@ -29,125 +64,55 @@ def _get_trial_id():
                                                                "")
     return trial_id if trial_id else "1"
 
-# Parse arguments
-def _parse_arguments(argv):
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--TRAIN_FILE',
-        help='Location of the training file',
-        default='tmp/train.csv',
-        type=str
+
+def _train_and_evaluate(estimator, dataset, model_dir):
+    """Runs model training and evaluation."""
+    x_train, y_train, x_eval, y_eval = dataset
+    estimator.fit(x_train, y_train)
+    logging.info("Completed training XGBOOST model")
+
+    bst = estimator.get_booster()
+    bst_filename = 'model.bst'
+    bst.save_model(bst_filename)
+    model_output_path = os.path.join(model_dir, bst_filename)
+    utils.upload_blob(model_output_path.split("/")[2], bst_filename,
+                      "/".join(model_output_path.split("/")[3:]))
+    logging.info("Successfully uploaded file to GCS at location %s",
+                 model_dir)
+    y_pred = estimator.predict(x_eval)
+
+    # Binarize multiclass labels
+    lb = preprocessing.LabelBinarizer()
+    lb.fit(y_eval)
+    y_test = lb.transform(y_eval)
+    y_pred = lb.transform(y_pred)
+
+    score = metrics.roc_auc_score(y_test, y_pred, average='macro')
+    logging.info("AUC Score: %s", str(score))
+
+    hpt = hypertune.HyperTune()
+    hpt.report_hyperparameter_tuning_metric(
+        hyperparameter_metric_tag='roc_auc',
+        metric_value=score,
+        global_step=1000
     )
-    parser.add_argument(
-        '--TEST_FILE',
-        help='Location of the test file',
-        default='tmp/test.csv',
-        type=str
-    )
-    parser.add_argument(
-        "--output_dir",
-        help="Output directory for exporting model and other metadata.",
-        default="tmp",
-        type=str
-    )
-    parser.add_argument(
-        "--job-dir",
-        help="Not used, but needed for AI Platform.",
-        default="",
-    )
-    parser.add_argument(
-        '--max_depth',
-        help='Maximum depth of the XGBoost tree.',
-        default=3,
-        type=int
-    )
-    parser.add_argument(
-        '--n_estimators',
-        help='Number of estimators to be created.',
-        default=2,
-        type=int
-    )
-    parser.add_argument(
-        '--booster',
-        help='which booster to use: gbtree, gblinear or dart.',
-        default='gbtree',
-        type=str
-    )
-    parser.add_argument(
-        '--min_child_weight',
-        help='Minimum sum of instance weight (hessian) needed in a child',
-        default=1,
-        type=int
-    )
-    parser.add_argument(
-        '--learning_rate',
-        help='Step size shrinkage used in update to prevents overfitting',
-        default=0.3,
-        type=int
-    )
-    parser.add_argument(
-        '--gamma',
-        help='Minimum loss reduction required to make a further partition on a leaf node of the tree',
-        default=0,
-        type=int
-    )
-    parser.add_argument(
-        '--subsample',
-        help='Subsample ratio of the training instances',
-        default=1,
-        type=int
-    )
-    parser.add_argument(
-        '--colsample_bytree',
-        help='subsample ratio of columns when constructing each tree',
-        default=1,
-        type=int
-    )
-    parser.add_argument(
-        '--reg_alpha',
-        help='L1 regularization term on weights. Increasing this value will make model more conservative',
-        default=0,
-        type=int
-    )
-    parser.add_argument(
-        "--log_level",
-        help="Logging level.",
-        choices=[
-            "DEBUG",
-            "ERROR",
-            "FATAL",
-            "INFO",
-            "WARN",
-        ],
-        default="INFO",
-    )
-    parser.add_argument(
-        "--model_dir",
-        help="Not currently used.",
-        default="",
-    )
-    args = parser.parse_args()
-    return args
 
 
-# ------------------------------------------------------------------
+def run_experiment(params):
+    """Testbed for running model training and evaluation."""
+    dataset = inputs.download_data(params.train_path, params.eval_path)
+    estimator = model.get_estimator(params)
+    trial_id = _get_trial_id()
+    model_dir = os.path.join(params.model_dir, trial_id)
+    _train_and_evaluate(estimator, dataset, model_dir)
+
+
+def main():
+    """Entry point."""
+    args = _parse_arguments(sys.argv)
+    logging.basicConfig(level="INFO")
+    run_experiment(args)
+
 
 if __name__ == "__main__":
-    args = _parse_arguments(sys.argv)
-
-    {% for arg in args %}
-        {% if arg.type|string == "str" %}
-    args.{{arg.name}} = "{{arg.value}}"
-    {% else %}
-    args.{{arg.name}} = {{arg.value}}
-        {% endif %}
-    {% endfor %}
-    logging.basicConfig(level=args.log_level.upper())
-
-    # Append trial_id to path
-    trial_id = _get_trial_id()
-    model_dir = os.path.join("{{model_dir}}", trial_id)
-    print('Model dir %s' % model_dir)
-
-    # Run the training job
-    model.train_and_evaluate(args, model_dir)
+    main()

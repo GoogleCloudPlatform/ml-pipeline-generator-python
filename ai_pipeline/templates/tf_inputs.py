@@ -102,7 +102,8 @@ def get_serving_input_fn(data_format):
         """Build the serving inputs."""
         inputs = {}
         for col in SCHEMA:
-            inputs[col] = tf.placeholder(shape=[None], dtype=float)
+            if col != TARGET:
+                inputs[col] = tf.placeholder(shape=[None], dtype=float)
         return tf.estimator.export.ServingInputReceiver(inputs, inputs)
 
     data_formats = {

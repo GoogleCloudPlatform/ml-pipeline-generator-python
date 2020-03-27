@@ -749,8 +749,66 @@ class XGBoostModel(BaseModel):
     def __init__(self, config):
         super(XGBoostModel, self).__init__(config, "xgboost")
 
+    def _get_default_input_args(self, train_path, eval_path):
+        args = super(XGBoostModel, self)._get_default_input_args(
+            train_path, eval_path)
+        additional_args = {
+            "max_depth": {
+                "type": "int",
+                "help": "Maximum depth of the XGBoost tree.",
+                "default": 3,
+            },
+            "n_estimators": {
+                "type": "int",
+                "help": "Number of estimators to be created.",
+                "default": 2,
+            },
+            "booster": {
+                "type": "str",
+                "help": "which booster to use: gbtree, gblinear or dart.",
+                "default": "gbtree",
+            },
+            "min_child_weight": {
+                "type": "int",
+                "help": "Minimum sum of instance weight (hessian) needed in a child.",
+                "default": 1,
+            },
+            "learning_rate": {
+                "type": "float",
+                "help": "Step size shrinkage used in update to prevents overfitting.",
+                "default": 0.3,
+            },
+            "gamma": {
+                "type": "int",
+                "help": "Minimum loss reduction required to make a further partition on a leaf node of the tree.",
+                "default": 0,
+            },
+            "subsample": {
+                "type": "int",
+                "help": "Subsample ratio of the training instances.",
+                "default": 1,
+            },
+            "colsample_bytree": {
+                "type": "int",
+                "help": "subsample ratio of columns when constructing each tree.",
+                "default": 1,
+            },
+            "reg_alpha": {
+                "type": "int",
+                "help": "L1 regularization term on weights. Increasing this value will make model more conservative.",
+                "default": 0,
+            },
+            "num_classes": {
+                "type": "int",
+                "help": "Number of output labels must be in [0, num_class).",
+                "default": 1,
+            },
+        }
+        args.update(additional_args)
+        return args
+
     def generate_files(self):
-        super(XGBoostModel, self)._populate_trainer(
+        super(XGBoostModel, self).generate_files(
             "xgboost_task.py", "xgboost_model.py", "xgboost_inputs.py")
 
     def get_deploy_framework(self):

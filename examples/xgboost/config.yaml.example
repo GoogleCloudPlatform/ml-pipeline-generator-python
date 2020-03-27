@@ -47,16 +47,16 @@ data:
 
 model:
     name: [MODEL NAME]
-    path: "examples.sklearn.sklearn_model"
+    path: "examples.xgboost.xgboost_model"
     target: "income_bracket"
 
 model_params:
     input_args:
-        C:
-            type: "float"
-            help: "Regularization parameter, must be positive."
-            default: 1.0
-    hyperparam_config: "examples/sklearn/hptuning_config.yaml"
+        n_estimators:
+            type: "int"
+            help: "Number of output categories."
+            default: 10
+    hyperparam_config: "examples/taxi/xgboost/hptuning_config.yaml"
 
 orchestration:
     host: [KFP URL]

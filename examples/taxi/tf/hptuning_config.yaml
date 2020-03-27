@@ -1,3 +1,4 @@
+# python3
 # Copyright 2020 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,10 +12,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""ML model definition."""
-from {{model_path}} import get_model
-
-def get_estimator(params):
-    """Returns a SKLearn model."""
-    estimator = get_model(params)
-    return estimator
+trainingInput:
+  hyperparameters:
+    hyperparameterMetricTag: accuracy
+    goal: MAXIMIZE
+    maxTrials: 4
+    maxParallelTrials: 2
+    enableTrialEarlyStopping: True
+    params:
+      - parameterName: first_layer_size
+        type: INTEGER
+        minValue: 50
+        maxValue: 500
+        scaleType: UNIT_LINEAR_SCALE
+      - parameterName: num_layers
+        type: INTEGER
+        minValue: 1
+        maxValue: 15
+        scaleType: UNIT_LINEAR_SCALE

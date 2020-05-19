@@ -18,6 +18,21 @@ gcloud auth application-default login
 gcloud config set project [PROJECT_ID]
 ```
 
+### Enabling required APIs
+
+The tool requires following Google Cloud APIs to be enabled: 
+1. [Compute Engine](https://console.cloud.google.com/apis/api/compute.googleapis.com)
+1. [AI Platform Training and Prediction](https://console.cloud.google.com/apis/api/ml.googleapis.com)
+1. [Cloud Storage](https://console.cloud.google.com/apis/api/storage-component.googleapis.com)
+
+Enable the above APIs by following the links, or run the below command to enable the APIs for your project.
+
+```bash
+gcloud services enable ml.googleapis.com \
+compute.googleapis.com \
+storage-component.googleapis.com
+```
+
 ### Python environment
 ```bash
 python3 -m venv venv

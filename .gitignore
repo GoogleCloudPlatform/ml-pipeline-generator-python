@@ -9,7 +9,6 @@ models/*
 dist/*
 *.tar.gz
 config.yaml
-setup.py
 trainer/model.py
 trainer/task.py
 trainer/inputs.py

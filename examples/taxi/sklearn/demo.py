@@ -12,8 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Demo for scikit-learn AI Pipeline."""
-from ai_pipeline.models import SklearnModel
+"""Demo for scikit-learn ML Pipeline Generator."""
+from ml_pipeline_gen.models import SklearnModel
 from examples.preprocess.taxi_preprocess import load_data
 
 

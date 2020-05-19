@@ -12,11 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Demo for TF AI Pipeline."""
+"""Demo for TF ML Pipeline Generator."""
 import json
 import os
 
-from ai_pipeline.models import TFModel
+from ml_pipeline_gen.models import TFModel
 from examples.preprocess.census_preprocess import load_data
 
 

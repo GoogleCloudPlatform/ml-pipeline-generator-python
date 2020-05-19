@@ -21,9 +21,9 @@ import pathlib
 import jinja2 as jinja
 
 import datetime as dt
-from ai_pipeline.parsers import NestedNamespace
-from ai_pipeline.parsers import parse_yaml
-from ai_pipeline.component_lib import generate_component
+from ml_pipeline_gen.parsers import NestedNamespace
+from ml_pipeline_gen.parsers import parse_yaml
+from ml_pipeline_gen.component_lib import generate_component
 
 
 class _Component(object):
@@ -228,7 +228,7 @@ class KfpPipeline(BasePipeline):
 
     def generate_pipeline(self):
         """Creates the files to compile a pipeline."""
-        loader = jinja.PackageLoader("ai_pipeline", "templates")
+        loader = jinja.PackageLoader("ml_pipeline_gen", "templates")
         env = jinja.Environment(loader=loader, trim_blocks=True,
                                 lstrip_blocks="True")
         components, relations = self.to_graph()
@@ -258,7 +258,7 @@ class KfpPipeline(BasePipeline):
             ("kfp_pipeline_from_config.py", "orchestration/pipeline.py"),
             ("example_pipeline.ipynb", "orchestration/pipeline.ipynb")
         ]
-        loader = jinja.PackageLoader("ai_pipeline", "templates")
+        loader = jinja.PackageLoader("ml_pipeline_gen", "templates")
         env = jinja.Environment(loader=loader, trim_blocks=True,
                                 lstrip_blocks="True")
         for in_file, out_file in template_files:

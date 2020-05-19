@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Demo for KubeFlow Pipelines."""
-from ai_pipeline.models import TFModel
-from ai_pipeline.pipelines import KfpPipeline
+from ml_pipeline_gen.models import TFModel
+from ml_pipeline_gen.pipelines import KfpPipeline
 from examples.preprocess.census_preprocess import load_data
 
 

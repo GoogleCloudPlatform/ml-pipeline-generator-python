@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Demo for KubeFlow Pipelines."""
-from ai_pipeline.pipelines import KfpPipeline
+from ml_pipeline_gen.pipelines import KfpPipeline
 
 
 def main():

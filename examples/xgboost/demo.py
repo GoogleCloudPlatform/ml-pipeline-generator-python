@@ -12,8 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Demo for XGBoost AI Pipeline."""
-from ai_pipeline.models import XGBoostModel
+"""Demo for XGBoost ML Pipeline Generator."""
+from ml_pipeline_gen.models import XGBoostModel
 
 
 def main():

@@ -1,13 +1,19 @@
-*.pyc
+# Virtual envs
 venv/*
+testenv/
+
+# Generated files
+*.pyc
 models/*
 *.egg-info/
 dist/*
 *.tar.gz
-config.yaml
-
 setup.py
+config.yaml
 trainer/model.py
 trainer/task.py
 trainer/inputs.py
 orchestration/pipeline.py
+
+# Negated ignores
+!ml_pipeline_gen/templates/setup.py

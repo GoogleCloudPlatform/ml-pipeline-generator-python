@@ -16,8 +16,8 @@
 import os
 import unittest
 
-from ai_pipeline.models import BaseModel
-from ai_pipeline.models import SklearnModel
+from ml_pipeline_gen.models import BaseModel
+from ml_pipeline_gen.models import SklearnModel
 
 
 class TestBaseModel(unittest.TestCase):

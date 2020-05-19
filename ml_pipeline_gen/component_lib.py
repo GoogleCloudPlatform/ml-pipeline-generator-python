@@ -16,7 +16,7 @@
 from os import path
 import pathlib
 
-from ai_pipeline.parsers import parse_yaml
+from ml_pipeline_gen.parsers import parse_yaml
 import jinja2 as jinja
 
 
@@ -26,7 +26,7 @@ def generate_component(config, name, template_spec='./component_spec.yaml'):
     output_spec = parse_yaml(template_spec_path)
     current_spec = output_spec[name]
 
-    loader = jinja.PackageLoader('ai_pipeline', current_spec['template_dir'])
+    loader = jinja.PackageLoader('ml_pipeline_gen', current_spec['template_dir'])
     env = jinja.Environment(loader=loader, trim_blocks=True,
                             lstrip_blocks='True')
     template_file_list = current_spec['files']

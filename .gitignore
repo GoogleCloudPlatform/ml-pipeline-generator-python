@@ -1,11 +1,14 @@
-*.pyc
+# Virtual envs
 venv/*
+testenv/
+
+# Generated files
+*.pyc
 models/*
 *.egg-info/
 dist/*
 *.tar.gz
 config.yaml
-
 setup.py
 trainer/model.py
 trainer/task.py

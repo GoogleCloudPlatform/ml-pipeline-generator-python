@@ -27,7 +27,7 @@ import jinja2 as jinja
 import tensorflow.compat.v1 as tf
 from tensorflow.python.tools import saved_model_utils
 
-from ai_pipeline.parsers import parse_yaml
+from ml_pipeline_gen.parsers import parse_yaml
 
 
 class BaseModel(abc.ABC):
@@ -172,7 +172,7 @@ class BaseModel(abc.ABC):
             model_template_path: path to model.py template.
             inputs_template_path: path to inputs.py template.
         """
-        loader = jinja.PackageLoader("ai_pipeline", "templates")
+        loader = jinja.PackageLoader("ml_pipeline_gen", "templates")
         env = jinja.Environment(loader=loader, trim_blocks=True,
                                 lstrip_blocks="True")
 

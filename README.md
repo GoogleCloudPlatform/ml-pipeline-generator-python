@@ -51,7 +51,7 @@ to give the Kubeflow instance access to GCP services.
 > A future release will automate provisioning of KFP clusters and incorporate K8s Workload Identity for auth. 
 
 ## Cloud AI Platform Demo
-This demo uses the scikit-learn model in `examples/sklearn/user_model.py` to
+This demo uses the scikit-learn model in `examples/sklearn/sklearn_model.py` to
 create a training module to run on CAIP.
 
 ```bash
@@ -63,7 +63,7 @@ with `trainer/` code. Then, run `bin/run.train.sh` to train locally or
 `bin/run.train.sh cloud` to train on Google Cloud AI Platform.
 
 ## KFP Demo
-This demo uses the scikit-learn model in `examples/sklearn/user_model.py` to
+This demo uses the scikit-learn model in `examples/sklearn/sklearn_model.py` to
 create a KubeFlow Pipeline (hosted on AI Platform Pipelines).
 
 ```bash

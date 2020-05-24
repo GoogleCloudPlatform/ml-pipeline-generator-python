@@ -2,6 +2,9 @@
 venv/*
 testenv/
 
+# Editors
+.vscode/
+
 # SA Keys
 kfp-sa.json
 

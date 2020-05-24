@@ -19,7 +19,7 @@ The following backends are currently supported for model training:
 1. [Input Args](#input-args)
 
 ## Setup
-1. ### GCP Credentials
+### 1. GCP Credentials
 
     ```bash
     gcloud auth login
@@ -53,7 +53,7 @@ The following backends are currently supported for model training:
 This demo uses the scikit-learn model in `examples/sklearn/sklearn_model.py` to
 create a training module to run on CAIP. 
 
-### Update `config.yaml` <a name="caip-update-config"></a>
+### Update config params <a name="caip-update-config"></a>
 
 The [config parameters](#input-args) must be defined in `examples/sklearn/config.yaml` and a sample config file can be found in `examples/sklearn/` dir.
 
@@ -71,7 +71,7 @@ with `trainer/` code. Then, run `bin/run.train.sh` to train locally or
 This demo uses the TensorFlow model in `examples/tf/tf_model.py` to
 create training artifacts for KubeFlow Pipelines (hosted on AI Platform Pipelines). 
 
-### Update `config.yaml` <a name="kfp-update-config"></a>
+### Update config params <a name="kfp-update-config"></a>
 
 The [config parameters](#input-args) must be defined in `examples/tf/config.yaml` and a sample config file can be found in `examples/tf/` dir.
 

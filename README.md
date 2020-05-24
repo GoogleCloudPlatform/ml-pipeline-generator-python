@@ -19,7 +19,7 @@ The following backends are currently supported for model training:
 1. [Input Args](#input-args)
 
 ## Setup
-### 1. GCP Credentials
+1. ### GCP Credentials
 
     ```bash
     gcloud auth login

@@ -4,6 +4,7 @@ google-api-python-client
 jinja2
 joblib
 kfp
+kubernetes
 pandas
 pyyaml
 scikit-learn

@@ -25,7 +25,7 @@ def parse_yaml(path):
 
 
 class NestedNamespace(SimpleNamespace):
-    """Parse nested disctionary to create nested namespace object."""
+    """Parse nested dictionary to create nested namespace object."""
 
     def __init__(self, dictionary, **kwargs):
         super(NestedNamespace, self).__init__(**kwargs)

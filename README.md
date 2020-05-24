@@ -1,7 +1,7 @@
 # ML Pipeline Generator
 ML Pipeline Generator is a tool for generating end-to-end pipelines composed of GCP components so that users can easily migrate their local ML models onto GCP and start realizing the benefits of the Cloud quickly. 
 
-The following ML frameworks will be supported:
+The following ML frameworks are currently supported:
 1. TensorFlow (TF)
 1. Scikit-learn (SKL)
 1. XGBoost (XGB)
@@ -10,49 +10,54 @@ The following backends are currently supported for model training:
 1. [Google Cloud AI Platform](https://cloud.google.com/ai-platform) 
 1. [AI Platform Pipelines](https://cloud.google.com/ai-platform/pipelines/docs) (managed Kubeflow Pipelines)
 
+## Table of contents
+1. [Setup](#setup)
+1. [Cloud AI Platform Demo](#cloud-ai-platform-demo)
+1. [Kubeflow Pipelines Demo](#kubeflow-pipelines-demo)
+1. [Cleanup](#cleanup)
+1. [Tests](#tests)
+1. [Input Args](#input-args)
+
 ## Setup
-### GCP credentials
-```bash
-gcloud auth login
-gcloud auth application-default login
-gcloud config set project [PROJECT_ID]
-```
+1. ### GCP Credentials
 
-### Enabling required APIs
+    ```bash
+    gcloud auth login
+    gcloud auth application-default login
+    gcloud config set project [PROJECT_ID]
+    ```
 
-The tool requires following Google Cloud APIs to be enabled: 
-1. [Compute Engine](https://console.cloud.google.com/apis/api/compute.googleapis.com)
-1. [AI Platform Training and Prediction](https://console.cloud.google.com/apis/api/ml.googleapis.com)
-1. [Cloud Storage](https://console.cloud.google.com/apis/api/storage-component.googleapis.com)
+2. ### Required APIs
 
-Enable the above APIs by following the links, or run the below command to enable the APIs for your project.
+    The tool requires following Google Cloud APIs to be enabled: 
+    1. [Compute Engine](https://console.cloud.google.com/apis/api/compute.googleapis.com)
+    1. [AI Platform Training and Prediction](https://console.cloud.google.com/apis/api/ml.googleapis.com)
+    1. [Cloud Storage](https://console.cloud.google.com/apis/api/storage-component.googleapis.com)
 
-```bash
-gcloud services enable ml.googleapis.com \
-compute.googleapis.com \
-storage-component.googleapis.com
-```
+    Enable the above APIs by following the links, or run the below command to enable the APIs for your project.
 
-### Python environment
-```bash
-python3 -m venv venv
-source ./venv/bin/activate
-pip install -r requirements.txt
-```
+    ```bash
+    gcloud services enable ml.googleapis.com \
+    compute.googleapis.com \
+    storage-component.googleapis.com
+    ```
 
-### Config file
-Update the information in `config.yaml`. See the [Input args](#input-args) section below for details on the config parameters. 
-
-### Kubeflow
-Create a Kubeflow deployment using Cloud Marketplace. Follow these
-[instructions](https://github.com/kubeflow/pipelines/blob/master/manifests/gcp_marketplace/guide.md#gcp-service-account-credentials)
-to give the Kubeflow instance access to GCP services.
-
-> A future release will automate provisioning of KFP clusters and incorporate K8s Workload Identity for auth. 
+1. ### Python Environment
+    ```bash
+    python3 -m venv venv
+    source ./venv/bin/activate
+    pip install -r requirements.txt
+    ```
 
 ## Cloud AI Platform Demo
 This demo uses the scikit-learn model in `examples/sklearn/sklearn_model.py` to
-create a training module to run on CAIP.
+create a training module to run on CAIP. 
+
+### Update `config.yaml` <a name="caip-update-config"></a>
+
+The [config parameters](#input-args) must be defined in `examples/sklearn/config.yaml` and a sample config file can be found in `examples/sklearn/` dir.
+
+### Run example <a name="caip-run-demo"></a>
 
 ```bash
 python -m examples.sklearn.demo
@@ -62,17 +67,25 @@ Running this demo uses the config file to generate `bin/run.train.sh` along
 with `trainer/` code. Then, run `bin/run.train.sh` to train locally or
 `bin/run.train.sh cloud` to train on Google Cloud AI Platform.
 
-## KFP Demo
-This demo uses the scikit-learn model in `examples/sklearn/sklearn_model.py` to
-create a KubeFlow Pipeline (hosted on AI Platform Pipelines).
+## Kubeflow Pipelines Demo
+This demo uses the TensorFlow model in `examples/tf/tf_model.py` to
+create training artifacts for KubeFlow Pipelines (hosted on AI Platform Pipelines). 
+
+### Update `config.yaml` <a name="kfp-update-config"></a>
+
+The [config parameters](#input-args) must be defined in `examples/tf/config.yaml` and a sample config file can be found in `examples/tf/` dir.
+
+### Run example <a name="kfp-run-demo"></a>
 
 ```bash
 python -m examples.kfp.demo
-python -m orchestration.pipeline
 ```
 
-### Cleanup
-Delete the generated files by running `bin/cleanup.sh`.
+## Cleanup
+Delete the generated files by running 
+```bash
+bin/cleanup.sh
+```
 
 ## Tests
 The tests use `unittest`, Python's built-in unit testing framework. By running

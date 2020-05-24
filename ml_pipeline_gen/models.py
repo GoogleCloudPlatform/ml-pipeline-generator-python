@@ -113,7 +113,7 @@ class BaseModel(abc.ABC):
         Returns:
             a parent entity to pass to a CAIP API call. With no additional
             parameters, a project is returned. However, setting any one of the
-            keyword args will change the retuned entity based on the set
+            keyword args will change the returned entity based on the set
             parameter.
         """
         parent = "projects/{}".format(self.project_id)

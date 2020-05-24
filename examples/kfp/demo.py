@@ -24,15 +24,15 @@ def main():
     model = TFModel(config)
     model.generate_files()
     pipeline = KfpPipeline(model)
+    pipeline.configure_kfp_cluster()
 
-    # preprocess and upload dataset to expected location.
+    # Preprocess and upload dataset to expected location.
     load_data(model.data["train"], model.data["evaluation"])
 
-    # define pipeline structure
+    # Define pipeline structure.
     p = pipeline.add_train_component()
     pipeline.add_deploy_component(parent=p)
     pipeline.add_predict_component(parent=p)
-    pipeline.print_structure()
 
     pipeline.generate_pipeline()
 

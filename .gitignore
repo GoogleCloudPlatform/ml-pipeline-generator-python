@@ -2,6 +2,9 @@
 venv/*
 testenv/
 
+# SA Keys
+kfp-sa.json
+
 # Generated files
 *.pyc
 models/*

@@ -18,9 +18,13 @@ import json
 import os
 from os import path
 import pathlib
-import jinja2 as jinja
-
+import subprocess
+import time
 import datetime as dt
+import jinja2 as jinja
+from kubernetes import client, config
+from kubernetes.client.rest import ApiException
+
 from ml_pipeline_gen.parsers import NestedNamespace
 from ml_pipeline_gen.parsers import parse_yaml
 from ml_pipeline_gen.component_lib import generate_component
@@ -226,6 +230,43 @@ class KfpPipeline(BasePipeline):
         with open(dest, "w+") as f:
             f.write(body)
 
+    def configure_kfp_cluster(self):
+        """Calls shell script to create a KFP cluster."""
+        model = self.model
+        subprocess.call([
+            "bin/create_kfp_cluster.sh",
+            model.project_id,
+            model.cluster_name,
+            model.zone
+        ])
+
+    def get_kfp_hostname(self):
+        """Returns Hostname (URL) of KFP cluster in current kube context."""
+        # Checks default kubectl context from ~/.kube/config
+        config.load_kube_config()
+
+        name = "inverse-proxy-config"
+        namespace = "kubeflow"
+
+        instance = client.CoreV1Api()
+
+        response = instance.read_namespaced_config_map(name, namespace)
+        while response.data is None:
+            print("Waiting for KFP Dashboard to be created...")
+            time.sleep(60)
+            try:
+                response = instance.read_namespaced_config_map(name, namespace)
+            except ApiException as e:
+                print("Exception -> CoreV1Api: %s\n" % e)
+
+        # Although hostname is available, accessing it can throw 502/504s if
+        # the dashboard isn't fully configured. Hence, wait for 180 sec.
+        time.sleep(180)
+        print((
+            "KFP Dashboard configured. Check the status "
+            "of your pipeline at {0}").format(response.data["Hostname"]))
+        return response.data["Hostname"]
+
     def generate_pipeline(self):
         """Creates the files to compile a pipeline."""
         loader = jinja.PackageLoader("ml_pipeline_gen", "templates")
@@ -247,7 +288,7 @@ class KfpPipeline(BasePipeline):
             "prediction_params": self._get_predict_params(),
             "components": components,
             "relations": relations,
-            "host": model.orchestration["host"],
+            "host": self.get_kfp_hostname(),
         }
         self._write_template(env, "kfp_pipeline.py", pipeline_args,
                              "orchestration/pipeline.py")

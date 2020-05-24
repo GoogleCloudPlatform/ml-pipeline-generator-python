@@ -30,7 +30,7 @@ deploy_op = cs.load_component('{{config.deploy.component}}')
 
 @dsl.pipeline(
     name='KFP-Pipelines Example',
-    description='Kubeflow pipeline generated from ai-pipeline asset'
+    description='Kubeflow pipeline generated from ml-pipeline-generator asset'
 )
 def pipeline_sample(
         project_id='{{config.project_id}}',

@@ -124,3 +124,10 @@ as inputs in the config file.
 | log_step_count_steps | Number of steps to run before logging training performance. |
 | eval_steps | Number of steps to use to evaluate the model. |
 | early_stopping_steps | Number of steps with no loss decrease before stopping early. |
+
+## Contribute
+To modify the behavior of the library, install `ml-pipeline-gen` using:
+
+```bash
+pip install -e .
+```

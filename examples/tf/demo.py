@@ -17,16 +17,17 @@ import json
 import os
 
 from ml_pipeline_gen.models import TFModel
-from examples.preprocess.census_preprocess import load_data
+from model.census_preprocess import load_data
 
 
 def _upload_data_to_gcs(model):
+    """Calls the preprocessing fn which uploads train/eval data to GCS."""
     load_data(model.data["train"], model.data["evaluation"])
 
 
 # TODO(humichael): See if there's a way to support csv batch predicts.
 def _upload_input_data_to_gcs(model, data):
-    input_path = "./tf_input_data.json"
+    input_path = "tf_input_data.json"
     with open(input_path, "w+") as f:
         for features in data:
             f.write(json.dumps(features) + "\n")
@@ -36,7 +37,7 @@ def _upload_input_data_to_gcs(model, data):
 
 def main():
     explanations = True
-    config = "examples/tf/config.yaml"
+    config = "config.yaml"
     pred_input = [{
         "age": 0.02599666,
         "workclass": 6,

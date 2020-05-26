@@ -18,6 +18,8 @@ import collections.abc
 import datetime as dt
 import json
 import os
+import pathlib
+import shutil
 import subprocess
 import time
 
@@ -161,6 +163,13 @@ class BaseModel(abc.ABC):
         with open(dest, "w+") as f:
             f.write(body)
 
+    def _write_static(self):
+        """Copies static files to the working directory."""
+        root_dir = pathlib.Path(__file__).parent.resolve()
+        for d in root_dir.joinpath("static").iterdir():
+            if d.is_dir() and not os.path.exists(d.stem):
+                shutil.copytree(d, d.stem)
+
     # TODO(humichael): find way to avoid using relative paths.
     @abc.abstractmethod
     def generate_files(self, task_template_path,
@@ -189,6 +198,7 @@ class BaseModel(abc.ABC):
         }
         setup_args = {"package_name": self.package_name}
 
+        self._write_static()
         self._write_template(env, task_template_path, task_args,
                              "trainer/task.py")
         self._write_template(env, model_template_path, model_args,
@@ -280,7 +290,7 @@ class BaseModel(abc.ABC):
         }
 
         file_name = "explanation_metadata.json"
-        with open(file_name, 'w+') as output_file:
+        with open(file_name, "w+") as output_file:
             json.dump(explanation_metadata, output_file)
 
         dst = os.path.join(path, file_name)
@@ -770,17 +780,20 @@ class XGBoostModel(BaseModel):
             },
             "min_child_weight": {
                 "type": "int",
-                "help": "Minimum sum of instance weight (hessian) needed in a child.",
+                "help": ("Minimum sum of instance weight (hessian) needed in a "
+                         "child."),
                 "default": 1,
             },
             "learning_rate": {
                 "type": "float",
-                "help": "Step size shrinkage used in update to prevents overfitting.",
+                "help": ("Step size shrinkage used in update to prevents "
+                         "overfitting."),
                 "default": 0.3,
             },
             "gamma": {
                 "type": "int",
-                "help": "Minimum loss reduction required to make a further partition on a leaf node of the tree.",
+                "help": ("Minimum loss reduction required to make a further "
+                         "partition on a leaf node of the tree."),
                 "default": 0,
             },
             "subsample": {
@@ -790,12 +803,14 @@ class XGBoostModel(BaseModel):
             },
             "colsample_bytree": {
                 "type": "int",
-                "help": "subsample ratio of columns when constructing each tree.",
+                "help": ("subsample ratio of columns when constructing each "
+                         "tree."),
                 "default": 1,
             },
             "reg_alpha": {
                 "type": "int",
-                "help": "L1 regularization term on weights. Increasing this value will make model more conservative.",
+                "help": ("L1 regularization term on weights. Increasing this "
+                         "value will make model more conservative."),
                 "default": 0,
             },
             "num_classes": {

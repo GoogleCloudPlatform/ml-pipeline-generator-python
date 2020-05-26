@@ -7,13 +7,10 @@ testenv/
 models/*
 *.egg-info/
 dist/*
+build/*
 *.tar.gz
-setup.py
 config.yaml
 trainer/model.py
 trainer/task.py
 trainer/inputs.py
 orchestration/pipeline.py
-
-# Negated ignores
-!ml_pipeline_gen/templates/setup.py

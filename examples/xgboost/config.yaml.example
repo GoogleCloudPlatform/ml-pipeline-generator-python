@@ -46,8 +46,10 @@ data:
         output_format: "JSON"
 
 model:
+    # Name must start with a letter and only contain letters, numbers, and
+    # underscores.
     name: [MODEL NAME]
-    path: "examples.xgboost.xgboost_model"
+    path: "xgboost_model"
     target: "income_bracket"
 
 model_params:
@@ -56,7 +58,5 @@ model_params:
             type: "int"
             help: "Number of output categories."
             default: 10
-    hyperparam_config: "examples/taxi/xgboost/hptuning_config.yaml"
-
-orchestration:
-    host: [KFP URL]
+    # Relative path.
+    hyperparam_config: "hptuning_config.yaml"

@@ -10,6 +10,11 @@ The following backends are currently supported for model training:
 1. [Google Cloud AI Platform](https://cloud.google.com/ai-platform) 
 1. [AI Platform Pipelines](https://cloud.google.com/ai-platform/pipelines/docs) (managed Kubeflow Pipelines)
 
+## Installation
+```bash
+pip install ml-pipeline-gen
+```
+
 ## Setup
 ### GCP credentials
 ```bash
@@ -55,7 +60,9 @@ This demo uses the scikit-learn model in `examples/sklearn/sklearn_model.py` to
 create a training module to run on CAIP.
 
 ```bash
-python -m examples.sklearn.demo
+cp -r examples/sklearn sklearn-demo
+cd sklearn-demo
+python demo.py
 ```
 
 Running this demo uses the config file to generate `bin/run.train.sh` along
@@ -67,12 +74,10 @@ This demo uses the scikit-learn model in `examples/sklearn/sklearn_model.py` to
 create a KubeFlow Pipeline (hosted on AI Platform Pipelines).
 
 ```bash
-python -m examples.kfp.demo
-python -m orchestration.pipeline
+cp -r examples/kfp kfp-demo
+cd kfp-demo
+python demo.py
 ```
-
-### Cleanup
-Delete the generated files by running `bin/cleanup.sh`.
 
 ## Tests
 The tests use `unittest`, Python's built-in unit testing framework. By running

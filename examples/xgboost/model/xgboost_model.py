@@ -30,10 +30,10 @@ import argparse
 import numpy as np
 from xgboost import XGBClassifier
 
-from examples.preprocess.census_preprocess import load_data
-
+from model.census_preprocess import load_data
 
 TARGET_COLUMN = 'TARGET'
+
 
 def get_model(args):
     """Returns a XGBoost model."""
@@ -64,5 +64,5 @@ def main():
     print(score)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

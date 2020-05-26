@@ -14,10 +14,15 @@
 # limitations under the License.
 """Demo for XGBoost ML Pipeline Generator."""
 from ml_pipeline_gen.models import XGBoostModel
+from model.census_preprocess import load_data
+
+
+def _upload_data_to_gcs(model):
+    load_data(model.data["train"], model.data["evaluation"])
 
 
 def main():
-    config = "examples/xgboost/config.yaml"
+    config = "config.yaml"
     pred_input = [[
          7.65000000e+02, 2.81400000e+04, 0.00000000e+00, 1.00000000e+00,
          8.30000000e+01, 3.26000000e+05, 8.30000000e+01, 4.87500000e+00,
@@ -59,6 +64,9 @@ def main():
     ]]
 
     model = XGBoostModel(config)
+    model.generate_files()
+    _upload_data_to_gcs(model)
+
     job_id = model.train()
     version = model.deploy(job_id=job_id)
     preds = model.online_predict(pred_input, version=version)

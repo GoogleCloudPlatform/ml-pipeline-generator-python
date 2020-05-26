@@ -49,7 +49,7 @@ model:
     # Name must start with a letter and only contain letters, numbers, and
     # underscores.
     name: [MODEL NAME]
-    path: "tf_model"
+    path: "model.tf_model"
     target: "income_bracket"
     metrics:
         - "accuracy"

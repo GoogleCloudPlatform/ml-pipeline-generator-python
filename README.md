@@ -42,42 +42,59 @@ storage-component.googleapis.com
 ```bash
 python3 -m venv venv
 source ./venv/bin/activate
-pip install -r requirements.txt
+pip install ml-pipeline-gen
 ```
-
-### Config file
-Update the information in `config.yaml`. See the [Input args](#input-args) section below for details on the config parameters. 
 
 ### Kubeflow
 Create a Kubeflow deployment using Cloud Marketplace. Follow these
 [instructions](https://github.com/kubeflow/pipelines/blob/master/manifests/gcp_marketplace/guide.md#gcp-service-account-credentials)
 to give the Kubeflow instance access to GCP services.
 
-> A future release will automate provisioning of KFP clusters and incorporate K8s Workload Identity for auth. 
+> A future release will automate provisioning of KFP clusters and incorporate
+K8s Workload Identity for auth. 
 
 ## Cloud AI Platform Demo
-This demo uses the scikit-learn model in `examples/sklearn/sklearn_model.py` to
-create a training module to run on CAIP.
+This demo uses the scikit-learn model in
+`examples/sklearn/model/sklearn_model.py` to create a training module to run on
+CAIP. First, make a copy of the scikit-learn example.
 
 ```bash
 cp -r examples/sklearn sklearn-demo
 cd sklearn-demo
+```
+
+Create a `config.yaml` by using the `config.yaml.example` template. See the
+[Input args](#input-args) section for details on the config parameters. Once the
+config file is filled out, run the demo.
+
+```bash
 python demo.py
 ```
 
-Running this demo uses the config file to generate `bin/run.train.sh` along
-with `trainer/` code. Then, run `bin/run.train.sh` to train locally or
-`bin/run.train.sh cloud` to train on Google Cloud AI Platform.
+Running this demo uses the config file to generate a `trainer/` module that is
+compatible with CAIP.
 
 ## KFP Demo
-This demo uses the scikit-learn model in `examples/sklearn/sklearn_model.py` to
-create a KubeFlow Pipeline (hosted on AI Platform Pipelines).
+This demo uses the TensorFlow model in `examples/kfp/model/tf_model.py` to
+create a KubeFlow Pipeline (hosted on AI Platform Pipelines). First, make a copy
+of the kfp example.
 
 ```bash
 cp -r examples/kfp kfp-demo
 cd kfp-demo
+```
+
+Create a `config.yaml` by using the `config.yaml.example` template. See the
+[Input args](#input-args) section for details on the config parameters. Once the
+config file is filled out, run the demo.
+
+```bash
 python demo.py
 ```
+
+Running this demo uses the config file to generate a `trainer/` module that is
+compatible with CAIP. It also generates `orchestration/pipeline.py`, which
+compiles a Kubeflow Pipeline.
 
 ## Tests
 The tests use `unittest`, Python's built-in unit testing framework. By running

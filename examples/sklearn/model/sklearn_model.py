@@ -18,7 +18,7 @@ import argparse
 import numpy as np
 from sklearn import svm
 
-from examples.preprocess.census_preprocess import load_data
+from model.census_preprocess import load_data
 
 
 def get_model(params):

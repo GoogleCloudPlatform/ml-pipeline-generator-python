@@ -21,7 +21,7 @@ import argparse
 
 import tensorflow.compat.v1 as tf
 
-from examples.preprocess.census_preprocess import load_data
+from model.census_preprocess import load_data
 
 
 def get_model(inputs, params):

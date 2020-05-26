@@ -49,7 +49,7 @@ model:
     # Name must start with a letter and only contain letters, numbers, and
     # underscores.
     name: [MODEL NAME]
-    path: "xgboost_model"
+    path: "model.xgboost_model"
     target: "income_bracket"
 
 model_params:

@@ -18,7 +18,7 @@ import os
 
 from ml_pipeline_gen.models import TFModel
 from ml_pipeline_gen.pipelines import KfpPipeline
-from examples.preprocess.census_preprocess import load_data
+from model.census_preprocess import load_data
 
 
 def _upload_data_to_gcs(model):
@@ -38,7 +38,7 @@ def _upload_input_data_to_gcs(model, data):
 
 # pylint: disable=g-import-not-at-top
 def main():
-    config = "examples/tf/config.yaml"
+    config = "config.yaml"
     model = TFModel(config)
     model.generate_files()
     _upload_data_to_gcs(model)

@@ -14,13 +14,14 @@
 """Config for installing a Python module/package."""
 
 import setuptools
+import ml_pipeline_gen
 
 with open("README.md", "r") as f:
     long_description = f.read()
 
 setuptools.setup(
     name="ml-pipeline-gen",
-    version="0.0.3",
+    version=ml_pipeline_gen.__version__,
     author="Michael Hu",
     author_email="author@example.com",
     description="A tool for generating end-to-end pipelines on GCP.",

@@ -1,4 +1,6 @@
 # ML Pipeline Generator
+[![PyPI version](https://badge.fury.io/py/ml-pipeline-gen.svg)](https://badge.fury.io/py/ml-pipeline-gen)
+
 ML Pipeline Generator is a tool for generating end-to-end pipelines composed of GCP components so that users can easily migrate their local ML models onto GCP and start realizing the benefits of the Cloud quickly. 
 
 The following ML frameworks will be supported:

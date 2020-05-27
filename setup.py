@@ -20,7 +20,7 @@ with open("README.md", "r") as f:
 
 setuptools.setup(
     name="ml-pipeline-gen",
-    version="0.0.2",
+    version="0.0.3",
     author="Michael Hu",
     author_email="author@example.com",
     description="A tool for generating end-to-end pipelines on GCP.",
@@ -47,4 +47,5 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
+    include_package_data=True,
 )

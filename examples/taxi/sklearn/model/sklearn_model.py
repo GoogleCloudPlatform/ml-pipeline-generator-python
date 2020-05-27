@@ -28,53 +28,26 @@
 
 import argparse
 import numpy as np
+from sklearn import svm
 
-from sklearn import metrics
-from xgboost import XGBClassifier
-
-from examples.preprocess.taxi_preprocess import load_data
+from model.taxi_preprocess import load_data
 
 
-TARGET_COLUMN = "TARGET"
-
-def get_model(args):
-    """Returns a XGBoost model."""
-    params = {
-        "n_estimators": args.n_estimators,
-        "max_depth": args.max_depth,
-        "booster": args.booster,
-        "min_child_weight": args.min_child_weight,
-        "learning_rate": args.learning_rate,
-        "gamma": args.gamma,
-        "subsample": args.subsample,
-        "colsample_bytree": args.colsample_bytree,
-        "reg_alpha": args.reg_alpha,
-        "num_class": args.num_classes
-    }
-    xgb_model = XGBClassifier(**params)
-    return xgb_model
+def get_model(params):
+    """Trains a classifier."""
+    classifier = svm.SVC(C=params.C)
+    return classifier
 
 
 def main():
     """Trains a model locally to test get_model()."""
     train_x, train_y, eval_x, eval_y = load_data()
     train_y, eval_y = [np.ravel(x) for x in [train_y, eval_y]]
-    params = argparse.Namespace(
-        n_estimators = 2,
-        max_depth = 3,
-        booster = "gbtree",
-        min_child_weight = 1,
-        learning_rate = 0.3,
-        gamma = 0,
-        subsample = 1,
-        colsample_bytree = 1,
-        reg_alpha = 0,
-        num_class = 1)
+    params = argparse.Namespace(C=1.0)
     model = get_model(params)
     model.fit(train_x, train_y)
-    y_pred = model.predict(eval_x)
-    score = metrics.roc_auc_score(eval_y, y_pred, average="macro")
-    print("ROC: {}".format(score))
+    score = model.score(eval_x, eval_y)
+    print(score)
 
 
 if __name__ == "__main__":

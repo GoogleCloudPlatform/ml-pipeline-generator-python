@@ -21,7 +21,7 @@ scale_tier: "STANDARD_1"
 runtime_version: "1.15"
 python_version: "3.7"
 package_name: "ml_pipeline_gen"
-machine_type_pred: "mls1-c4-m2"
+machine_type_pred: "n1-standard-4"
 
 data:
     schema:
@@ -49,14 +49,30 @@ model:
     # Name must start with a letter and only contain letters, numbers, and
     # underscores.
     name: [MODEL NAME]
-    path: "model.xgboost_model"
+    path: "model.tf_model"
     target: "income_bracket"
+    metrics:
+        - "accuracy"
 
 model_params:
     input_args:
-        n_estimators:
+        first_layer_size:
             type: "int"
-            help: "Number of output categories."
-            default: 10
+            help: "Size of the NN first layer."
+            default: 50
+        num_layers:
+            type: "int"
+            help: "Number of layers in the NN."
+            default: 5
+        max_steps:
+            default: 1000
     # Relative path.
     hyperparam_config: "hptuning_config.yaml"
+    explain_output:
+        explain_type: "sampledShapleyAttribution"
+        explain_param:
+            name: "numPaths"
+            value: 40
+
+orchestration:
+    host: [KFP URL]

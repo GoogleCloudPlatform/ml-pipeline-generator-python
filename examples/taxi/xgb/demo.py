@@ -14,7 +14,7 @@
 # limitations under the License.
 """Demo for XGBoost ML Pipeline Generator."""
 from ml_pipeline_gen.models import XGBoostModel
-from examples.preprocess.taxi_preprocess import load_data
+from model.taxi_preprocess import load_data
 
 
 def _upload_data_to_gcs(model):
@@ -22,11 +22,11 @@ def _upload_data_to_gcs(model):
 
 
 def main():
-    config = "examples/taxi/xgb/config.yaml"
+    config = "config.yaml"
     pred_input = [[
         1.0, -0.56447923, -0.5502175, -1.00234, -0.60791147,
-         0.38163432, 0.5846407, 0.6274534, 1.4543412, -0.09238409,
-         41.881, -87.633, 41.885, -87.62100000000001, 1, 3
+        0.38163432, 0.5846407, 0.6274534, 1.4543412, -0.09238409,
+        41.881, -87.633, 41.885, -87.62100000000001, 1, 3
     ]]
 
     model = XGBoostModel(config)

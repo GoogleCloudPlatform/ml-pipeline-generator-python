@@ -28,15 +28,29 @@
 
 import argparse
 import numpy as np
-from sklearn import svm
+from xgboost import XGBClassifier
 
-from examples.preprocess.taxi_preprocess import load_data
+from model.census_preprocess import load_data
+
+TARGET_COLUMN = 'TARGET'
 
 
-def get_model(params):
-    """Trains a classifier."""
-    classifier = svm.SVC(C=params.C)
-    return classifier
+def get_model(args):
+    """Returns a XGBoost model."""
+    params = {
+        'n_estimators': args.n_estimators,
+        'max_depth': args.max_depth,
+        'booster': args.booster,
+        'min_child_weight': args.min_child_weight,
+        'learning_rate': args.learning_rate,
+        'gamma': args.gamma,
+        'subsample': args.subsample,
+        'colsample_bytree': args.colsample_bytree,
+        'reg_alpha': args.reg_alpha,
+        'num_class': args.num_classes
+    }
+    xgb_model = XGBClassifier(**params)
+    return xgb_model
 
 
 def main():
@@ -50,5 +64,5 @@ def main():
     print(score)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

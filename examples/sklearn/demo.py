@@ -14,7 +14,7 @@
 # limitations under the License.
 """Demo for scikit-learn ML Pipeline Generator."""
 from ml_pipeline_gen.models import SklearnModel
-from examples.preprocess.census_preprocess import load_data
+from model.census_preprocess import load_data
 
 
 def _upload_data_to_gcs(model):
@@ -22,7 +22,7 @@ def _upload_data_to_gcs(model):
 
 
 def main():
-    config = "examples/sklearn/config.yaml"
+    config = "config.yaml"
     pred_input = [
         [0.02599666, 6, 1.1365801, 4, 0, 1, 4, 0.14693314, -0.21713187,
          -0.034039237, 38],

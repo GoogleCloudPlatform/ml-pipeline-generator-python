@@ -25,20 +25,25 @@ machine_type_pred: "mls1-c4-m2"
 
 data:
     schema:
-        - "age"
-        - "workclass"
-        - "education_num"
-        - "marital_status"
-        - "occupation"
-        - "relationship"
-        - "race"
-        - "capital_gain"
-        - "capital_loss"
-        - "hours_per_week"
-        - "native_country"
-        - "income_bracket"
-    train: "gs://[BUCKET ID]/[MODEL NAME]/data/adult.data.csv"
-    evaluation: "gs://[BUCKET ID]/[MODEL NAME]/data/adult.test.csv"
+        - "trip_miles"
+        - "trip_seconds"
+        - "fare"
+        - "trip_start_month"
+        - "trip_start_hour"
+        - "trip_start_day"
+        - "pickup_community_area"
+        - "dropoff_community_area"
+        - "pickup_census_tract"
+        - "dropoff_census_tract"
+        - "pickup_latitude"
+        - "pickup_longitude"
+        - "dropoff_latitude"
+        - "dropoff_longitude"
+        - "payment_type"
+        - "company"
+        - "tip"
+    train: "gs://[BUCKET ID]/[MODEL NAME]/data/taxi_trips_train.csv"
+    evaluation: "gs://[BUCKET ID]/[MODEL NAME]/data/taxi_trips_eval.csv"
     prediction:
         input_data_paths:
             - "gs://[BUCKET ID]/[MODEL NAME]/inputs/*"
@@ -49,8 +54,8 @@ model:
     # Name must start with a letter and only contain letters, numbers, and
     # underscores.
     name: [MODEL NAME]
-    path: "model.xgboost_model"
-    target: "income_bracket"
+    path: "model.xgb_model"
+    target: "tip"
 
 model_params:
     input_args:
@@ -58,5 +63,4 @@ model_params:
             type: "int"
             help: "Number of output categories."
             default: 10
-    # Relative path.
     hyperparam_config: "hptuning_config.yaml"

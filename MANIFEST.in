@@ -1,0 +1,5 @@
+graft ml_pipeline_gen/templates
+graft ml_pipeline_gen/static
+
+prune **/experimental
+global-exclude *.py[cod]

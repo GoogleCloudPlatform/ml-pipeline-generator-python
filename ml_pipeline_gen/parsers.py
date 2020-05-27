@@ -13,18 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for parsing data sources."""
-from types import SimpleNamespace
+import types
 import yaml
 
 
 # TODO(humichael): Replace with gfile to support GCS.
 def parse_yaml(path):
+    """Parses the given config file."""
     with open(path, "r") as f:
         doc = f.read()
     return yaml.load(doc, Loader=yaml.FullLoader)
 
 
-class NestedNamespace(SimpleNamespace):
+class NestedNamespace(types.SimpleNamespace):
     """Parse nested disctionary to create nested namespace object."""
 
     def __init__(self, dictionary, **kwargs):

@@ -21,24 +21,29 @@ scale_tier: "STANDARD_1"
 runtime_version: "1.15"
 python_version: "3.7"
 package_name: "ml_pipeline_gen"
-machine_type_pred: "mls1-c4-m2"
+machine_type_pred: "n1-standard-4"
 
 data:
     schema:
-        - "age"
-        - "workclass"
-        - "education_num"
-        - "marital_status"
-        - "occupation"
-        - "relationship"
-        - "race"
-        - "capital_gain"
-        - "capital_loss"
-        - "hours_per_week"
-        - "native_country"
-        - "income_bracket"
-    train: "gs://[BUCKET ID]/[MODEL NAME]/data/adult.data.csv"
-    evaluation: "gs://[BUCKET ID]/[MODEL NAME]/data/adult.test.csv"
+        - "trip_miles"
+        - "trip_seconds"
+        - "fare"
+        - "trip_start_month"
+        - "trip_start_hour"
+        - "trip_start_day"
+        - "pickup_community_area"
+        - "dropoff_community_area"
+        - "pickup_census_tract"
+        - "dropoff_census_tract"
+        - "pickup_latitude"
+        - "pickup_longitude"
+        - "dropoff_latitude"
+        - "dropoff_longitude"
+        - "payment_type"
+        - "company"
+        - "tip"
+    train: "gs://[BUCKET ID]/[MODEL NAME]/data/taxi_trips_train.csv"
+    evaluation: "gs://[BUCKET ID]/[MODEL NAME]/data/taxi_trips_eval.csv"
     prediction:
         input_data_paths:
             - "gs://[BUCKET ID]/[MODEL NAME]/inputs/*"
@@ -49,14 +54,26 @@ model:
     # Name must start with a letter and only contain letters, numbers, and
     # underscores.
     name: [MODEL NAME]
-    path: "model.xgboost_model"
-    target: "income_bracket"
+    path: "model.tf_model"
+    target: "tip"
+    metrics:
+        - "accuracy"
 
 model_params:
     input_args:
-        n_estimators:
+        first_layer_size:
             type: "int"
-            help: "Number of output categories."
-            default: 10
-    # Relative path.
+            help: "Size of the NN first layer."
+            default: 50
+        num_layers:
+            type: "int"
+            help: "Number of layers in the NN."
+            default: 5
+        max_steps:
+            default: 1000
     hyperparam_config: "hptuning_config.yaml"
+    explain_output:
+        explain_type: "sampledShapleyAttribution"
+        explain_param:
+            name: "numPaths"
+            value: 40

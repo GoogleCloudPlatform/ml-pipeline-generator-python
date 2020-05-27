@@ -1,4 +1,6 @@
 # ML Pipeline Generator
+[![PyPI version](https://badge.fury.io/py/ml-pipeline-gen.svg)](https://badge.fury.io/py/ml-pipeline-gen)
+
 ML Pipeline Generator is a tool for generating end-to-end pipelines composed of GCP components so that users can easily migrate their local ML models onto GCP and start realizing the benefits of the Cloud quickly. 
 
 The following ML frameworks will be supported:
@@ -9,6 +11,11 @@ The following ML frameworks will be supported:
 The following backends are currently supported for model training:
 1. [Google Cloud AI Platform](https://cloud.google.com/ai-platform) 
 1. [AI Platform Pipelines](https://cloud.google.com/ai-platform/pipelines/docs) (managed Kubeflow Pipelines)
+
+## Installation
+```bash
+pip install ml-pipeline-gen
+```
 
 ## Setup
 ### GCP credentials
@@ -37,42 +44,59 @@ storage-component.googleapis.com
 ```bash
 python3 -m venv venv
 source ./venv/bin/activate
-pip install -r requirements.txt
+pip install ml-pipeline-gen
 ```
-
-### Config file
-Update the information in `config.yaml`. See the [Input args](#input-args) section below for details on the config parameters. 
 
 ### Kubeflow
 Create a Kubeflow deployment using Cloud Marketplace. Follow these
 [instructions](https://github.com/kubeflow/pipelines/blob/master/manifests/gcp_marketplace/guide.md#gcp-service-account-credentials)
 to give the Kubeflow instance access to GCP services.
 
-> A future release will automate provisioning of KFP clusters and incorporate K8s Workload Identity for auth. 
+> A future release will automate provisioning of KFP clusters and incorporate
+K8s Workload Identity for auth. 
 
 ## Cloud AI Platform Demo
-This demo uses the scikit-learn model in `examples/sklearn/sklearn_model.py` to
-create a training module to run on CAIP.
+This demo uses the scikit-learn model in
+`examples/sklearn/model/sklearn_model.py` to create a training module to run on
+CAIP. First, make a copy of the scikit-learn example.
 
 ```bash
-python -m examples.sklearn.demo
+cp -r examples/sklearn sklearn-demo
+cd sklearn-demo
 ```
 
-Running this demo uses the config file to generate `bin/run.train.sh` along
-with `trainer/` code. Then, run `bin/run.train.sh` to train locally or
-`bin/run.train.sh cloud` to train on Google Cloud AI Platform.
+Create a `config.yaml` by using the `config.yaml.example` template. See the
+[Input args](#input-args) section for details on the config parameters. Once the
+config file is filled out, run the demo.
+
+```bash
+python demo.py
+```
+
+Running this demo uses the config file to generate a `trainer/` module that is
+compatible with CAIP.
 
 ## KFP Demo
-This demo uses the scikit-learn model in `examples/sklearn/sklearn_model.py` to
-create a KubeFlow Pipeline (hosted on AI Platform Pipelines).
+This demo uses the TensorFlow model in `examples/kfp/model/tf_model.py` to
+create a KubeFlow Pipeline (hosted on AI Platform Pipelines). First, make a copy
+of the kfp example.
 
 ```bash
-python -m examples.kfp.demo
-python -m orchestration.pipeline
+cp -r examples/kfp kfp-demo
+cd kfp-demo
 ```
 
-### Cleanup
-Delete the generated files by running `bin/cleanup.sh`.
+Create a `config.yaml` by using the `config.yaml.example` template. See the
+[Input args](#input-args) section for details on the config parameters. Once the
+config file is filled out, run the demo.
+
+```bash
+python demo.py
+```
+
+Running this demo uses the config file to generate a `trainer/` module that is
+compatible with CAIP. It also generates `orchestration/pipeline.py`, which
+compiles a Kubeflow Pipeline.
 
 ## Tests
 The tests use `unittest`, Python's built-in unit testing framework. By running
@@ -102,3 +126,10 @@ as inputs in the config file.
 | log_step_count_steps | Number of steps to run before logging training performance. |
 | eval_steps | Number of steps to use to evaluate the model. |
 | early_stopping_steps | Number of steps with no loss decrease before stopping early. |
+
+## Contribute
+To modify the behavior of the library, install `ml-pipeline-gen` using:
+
+```bash
+pip install -e .
+```

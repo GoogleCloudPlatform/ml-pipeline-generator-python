@@ -13,16 +13,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Demo for KubeFlow Pipelines."""
+import json
+import os
+
 from ml_pipeline_gen.models import TFModel
 from ml_pipeline_gen.pipelines import KfpPipeline
-from examples.preprocess.census_preprocess import load_data
+from model.census_preprocess import load_data
+
+
+def _upload_data_to_gcs(model):
+    """Calls the preprocessing fn which uploads train/eval data to GCS."""
+    load_data(model.data["train"], model.data["evaluation"])
+
+
+# TODO(humichael): See if there's a way to support csv batch predicts.
+def _upload_input_data_to_gcs(model, data):
+    input_path = "tf_input_data.json"
+    with open(input_path, "w+") as f:
+        for features in data:
+            f.write(json.dumps(features) + "\n")
+    model.upload_pred_input_data(input_path)
+    os.remove(input_path)
 
 
 # pylint: disable=g-import-not-at-top
 def main():
-    config = "examples/tf/config.yaml"
+    config = "config.yaml"
     model = TFModel(config)
     model.generate_files()
+    _upload_data_to_gcs(model)
     pipeline = KfpPipeline(model)
 
     # preprocess and upload dataset to expected location.
@@ -36,6 +55,24 @@ def main():
 
     pipeline.generate_pipeline()
 
+    # Create batch prediction data in GCS.
+    pred_input = [{
+        "age": 0.02599666,
+        "workclass": 6,
+        "education_num": 1.1365801,
+        "marital_status": 4,
+        "occupation": 0,
+        "relationship": 1,
+        "race": 4,
+        "capital_gain": 0.14693314,
+        "capital_loss": -0.21713187,
+        "hours_per_week": -0.034039237,
+        "native_country": 38,
+        "income_bracket": 0,
+    }]
+    _upload_input_data_to_gcs(model, pred_input)
+
+    # Run the pipeline.
     # pylint: disable=import-outside-toplevel
     from orchestration import pipeline as kfp_pipeline
     kfp_pipeline.main()

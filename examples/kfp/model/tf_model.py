@@ -1,5 +1,5 @@
 # python3
-# Copyright 2020 Google Inc. All Rights Reserved.
+# Copyright 2019 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ import argparse
 
 import tensorflow.compat.v1 as tf
 
-from examples.preprocess.taxi_preprocess import load_data
+from model.census_preprocess import load_data
 
 
 def get_model(inputs, params):
-    """Trains a classifier on taxi data."""
+    """Trains a classifier on iris data."""
     dense = tf.keras.layers.Dense
     nn = dense(params.first_layer_size, activation="relu",
                kernel_initializer="uniform")(inputs)

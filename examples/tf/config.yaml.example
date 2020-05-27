@@ -46,8 +46,10 @@ data:
         output_format: "JSON"
 
 model:
+    # Name must start with a letter and only contain letters, numbers, and
+    # underscores.
     name: [MODEL NAME]
-    path: "examples.tf.tf_model"
+    path: "model.tf_model"
     target: "income_bracket"
     metrics:
         - "accuracy"
@@ -64,12 +66,10 @@ model_params:
             default: 5
         max_steps:
             default: 1000
-    hyperparam_config: "examples/tf/hptuning_config.yaml"
+    # Relative path.
+    hyperparam_config: "hptuning_config.yaml"
     explain_output:
         explain_type: "sampledShapleyAttribution"
         explain_param:
             name: "numPaths"
             value: 40
-
-orchestration:
-    host: [KFP URL]

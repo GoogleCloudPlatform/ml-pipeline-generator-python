@@ -23,7 +23,6 @@ import jinja2 as jinja
 import datetime as dt
 from ml_pipeline_gen.parsers import NestedNamespace
 from ml_pipeline_gen.parsers import parse_yaml
-from ml_pipeline_gen.component_lib import generate_component
 
 
 class _Component(object):
@@ -54,18 +53,6 @@ class BasePipeline(abc.ABC):
         if self.model:
             now = dt.datetime.now().strftime("%y%m%d_%h%m%s")
             self.job_id = "{}_{}".format(self.model.model["name"], now)
-
-    def add_component(self, name, parent=None, params={}):
-        """Adds a generic component to the pipeline after the specified parent."""
-        if not parent:
-            parent = self.structure
-        params = self.config.__dict__[name]
-        if params.component == "AUTO":
-            generate_component(self.config, name)
-        component = _Component(name, self.size, params=params)
-        parent.add_child(component)
-        self.size += 1
-        return component
 
     def list_components(self):
         all_components = []

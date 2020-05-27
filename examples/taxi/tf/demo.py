@@ -16,11 +16,9 @@
 import json
 import os
 
-import pandas as pd
-from sklearn import preprocessing
-
 from ml_pipeline_gen.models import TFModel
-from examples.preprocess.taxi_preprocess import load_data
+from model.taxi_preprocess import load_data
+
 
 def _upload_data_to_gcs(model):
     load_data(model.data["train"], model.data["evaluation"])
@@ -38,7 +36,7 @@ def _upload_input_data_to_gcs(model, data):
 
 def main():
     explanations = True
-    config = "examples/taxi/tf/config.yaml"
+    config = "config.yaml"
     pred_input = [{
         "trip_miles": 1.0,
         "trip_seconds": -0.56447923,
@@ -61,9 +59,8 @@ def main():
     model.generate_files()
     _upload_data_to_gcs(model)
 
-    # job_id = model.train(tune=True)
-    # print("Job ID: {}".format(job_id))
-    version = model.deploy(job_id="train_tf_taxi_demo_v1_20200326_183714", explanations=explanations)
+    job_id = model.train(tune=True)
+    version = model.deploy(job_id=job_id, explanations=explanations)
     if explanations:
         explanations = model.online_explanations(pred_input,
                                                  version=version)

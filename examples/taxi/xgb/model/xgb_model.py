@@ -32,10 +32,10 @@ import numpy as np
 from sklearn import metrics
 from xgboost import XGBClassifier
 
-from examples.preprocess.taxi_preprocess import load_data
-
+from model.taxi_preprocess import load_data
 
 TARGET_COLUMN = "TARGET"
+
 
 def get_model(args):
     """Returns a XGBoost model."""

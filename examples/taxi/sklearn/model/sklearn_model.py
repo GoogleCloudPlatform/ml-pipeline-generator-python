@@ -30,7 +30,7 @@ import argparse
 import numpy as np
 from sklearn import svm
 
-from examples.preprocess.taxi_preprocess import load_data
+from model.taxi_preprocess import load_data
 
 
 def get_model(params):

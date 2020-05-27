@@ -21,7 +21,7 @@ import argparse
 
 import tensorflow.compat.v1 as tf
 
-from examples.preprocess.taxi_preprocess import load_data
+from model.taxi_preprocess import load_data
 
 
 def get_model(inputs, params):

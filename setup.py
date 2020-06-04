@@ -39,7 +39,7 @@ setuptools.setup(
         "pandas",
         "pyyaml",
         "scikit-learn",
-        "tensorflow>=0.14.0,<2.0.0",
+        "tensorflow>=1.14.0,<2.0.0",
         "xgboost",
     ],
     classifiers=[

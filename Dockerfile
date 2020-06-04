@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM python:3
-RUN pip install ml-pipeline-gen
-CMD [ "python", "-m", "unittest" ]
+FROM python:3.6
+COPY . /app
+WORKDIR /app
+RUN pip install -e .
+RUN python -m unittest

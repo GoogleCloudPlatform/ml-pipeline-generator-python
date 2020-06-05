@@ -2,7 +2,7 @@ language: python
 python:
   - "3.6"
   - "3.7"
-  - "3.8"
+  # Tensorflow 1.x does not support python 3.8+
 install:
   - pip install -e .
 script:

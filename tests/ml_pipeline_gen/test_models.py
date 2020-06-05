@@ -13,8 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Unit tests for models classes."""
+import mock
 import os
+import shutil
+import tempfile
 import unittest
+
+from googleapiclient import discovery
 
 from ml_pipeline_gen.models import BaseModel
 from ml_pipeline_gen.models import SklearnModel
@@ -33,45 +38,54 @@ class TestSklearnModel(unittest.TestCase):
     """Tests SklearnModel class."""
 
     @classmethod
-    def setUpClass(cls):
-        """Instantiates a model."""
+    @mock.patch.object(discovery, 'build')
+    def setUpClass(cls, build_mock):
+        """Copies a demo and instantiates a model."""
         super(TestSklearnModel, cls).setUpClass()
-        cls.config = "examples/sklearn/config.yaml"
+        build_mock.return_value = None
+        cls.cwd = os.getcwd()
+        cls.test_dir = tempfile.mkdtemp()
+        cls.demo_dir = os.path.join(cls.test_dir, 'demo')
+        shutil.copytree('examples/sklearn', cls.demo_dir)
+
+        os.chdir(cls.demo_dir)
+        cls.config = 'config.yaml.example'
         cls.model = SklearnModel(cls.config)
 
     @classmethod
     def tearDownClass(cls):
-        """Cleans up generated directories."""
+        """Switch back to the original working dir and removes the demo."""
         super(TestSklearnModel, cls).tearDownClass()
-        cls.model.clean_up()
+        os.chdir(cls.cwd)
+        shutil.rmtree(cls.test_dir)
 
-    # TODO(humichael): technically private functions don't need to be tested. It
-    # should reflect in public functions.
-    def test_set_config(self):
-        """Ensures instance variables are created."""
-        model = self.__class__.model
-        model.model = {}
+    def setUp(self):
+        super(TestSklearnModel, self).setUp()
+        self.model = self.__class__.model
 
-        model._set_config(self.__class__.config)
-        self.assertEqual(model.model["name"], "sklearn_demo_model")
+    def tearDown(self):
+        super(TestSklearnModel, self).tearDown()
+        try:
+            self.__class__.model.clean_up()
+        except FileNotFoundError:
+            pass
 
-    def test_populate_trainer(self):
+    def test_generate_files(self):
         """Ensures task.py and model.py are created."""
-        model = self.__class__.model
-        model.clean_up()
+        self.assertFalse(os.path.exists('trainer'))
+        self.model.generate_files()
+        self.assertTrue(os.path.exists('trainer'))
+        trainer_files = os.listdir('trainer')
+        self.assertIn('task.py', trainer_files)
+        self.assertIn('model.py', trainer_files)
 
-        model._populate_trainer()
-        trainer_files = os.listdir("trainer")
-        self.assertIn("task.py", trainer_files)
-        self.assertIn("model.py", trainer_files)
-
-    @unittest.skip("How to test without running training?")
+    @unittest.skip('How to test without running training?')
     def test_local_train(self):
         """Tests local training."""
-        model = self.__class__.model
-        model.train()
-        model_files = os.listdir("models")
-        self.assertIn("{}.joblib".format(model.model["name"]), model_files)
+        self.model.generate_files()
+        self.model.train()
+        model_files = os.listdir('models')
+        self.assertIn('{}.joblib'.format(self.model.model['name']), model_files)
 
     # TODO(humichael): Need to spoof CAIP calls to test this.
     def test_cloud_train(self):
@@ -84,5 +98,5 @@ class TestSklearnModel(unittest.TestCase):
         pass
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

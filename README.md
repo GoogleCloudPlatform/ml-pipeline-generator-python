@@ -133,5 +133,5 @@ as inputs in the config file.
 To modify the behavior of the library, install `ml-pipeline-gen` using:
 
 ```bash
-pip install -e .
+pip install -e ".[dev]"
 ```

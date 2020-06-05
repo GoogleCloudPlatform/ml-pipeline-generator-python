@@ -1,4 +1,5 @@
 # ML Pipeline Generator
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/ml-pipeline-gen)
 [![PyPI version](https://badge.fury.io/py/ml-pipeline-gen.svg)](https://badge.fury.io/py/ml-pipeline-gen)
 [![Build
 Status](https://travis-ci.com/GoogleCloudPlatform/ml-pipeline-generator-python.svg?branch=master)](https://travis-ci.com/GoogleCloudPlatform/ml-pipeline-generator-python)

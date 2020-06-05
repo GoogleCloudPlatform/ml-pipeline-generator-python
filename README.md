@@ -1,5 +1,8 @@
 # ML Pipeline Generator
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/ml-pipeline-gen)
 [![PyPI version](https://badge.fury.io/py/ml-pipeline-gen.svg)](https://badge.fury.io/py/ml-pipeline-gen)
+[![Build
+Status](https://travis-ci.com/GoogleCloudPlatform/ml-pipeline-generator-python.svg?branch=master)](https://travis-ci.com/GoogleCloudPlatform/ml-pipeline-generator-python)
 
 ML Pipeline Generator is a tool for generating end-to-end pipelines composed of GCP components so that users can easily migrate their local ML models onto GCP and start realizing the benefits of the Cloud quickly. 
 
@@ -131,5 +134,5 @@ as inputs in the config file.
 To modify the behavior of the library, install `ml-pipeline-gen` using:
 
 ```bash
-pip install -e .
+pip install -e ".[dev]"
 ```

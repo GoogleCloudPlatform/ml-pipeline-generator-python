@@ -16,6 +16,7 @@
 import abc
 import json
 import os
+import subprocess
 from os import path
 import pathlib
 import jinja2 as jinja
@@ -145,6 +146,20 @@ class BasePipeline(abc.ABC):
 
 class KfpPipeline(BasePipeline):
     """KubeFlow Pipelines class."""
+
+    def __init__(self, model=None, config=None):
+        super().__init__(model, config)
+        self.setup_wi_auth()
+
+    def setup_wi_auth(self):
+        """Calls shell script to setup WI for KFP cluster."""
+        model = self.model
+        subprocess.call([
+            "bin/provision_auth.sh",
+            model.project_id,
+            model.cluster_name,
+            model.zone
+        ])
 
     def _get_train_params(self):
         """Returns parameters for training on CAIP."""

@@ -35,7 +35,8 @@ The tool requires following Google Cloud APIs to be enabled:
 1. [AI Platform Training and Prediction](https://console.cloud.google.com/apis/api/ml.googleapis.com)
 1. [Cloud Storage](https://console.cloud.google.com/apis/api/storage-component.googleapis.com)
 
-Enable the above APIs by following the links, or run the below command to enable the APIs for your project.
+Enable the above APIs by following the links, or run the below command to 
+enable the APIs for your project.
 
 ```bash
 gcloud services enable ml.googleapis.com \
@@ -69,7 +70,7 @@ cd sklearn-demo
 ```
 
 Create a `config.yaml` by using the `config.yaml.example` template. See the
-[Input args](#input-args) section for details on the config parameters. Once the
+[schema](schema/CONFIG.md) for details on the config parameters. Once the
 config file is filled out, run the demo.
 
 ```bash
@@ -89,7 +90,8 @@ cp -r examples/kfp kfp-demo
 cd kfp-demo
 ```
 
-Create a `config.yaml` by using the `config.yaml.example` template. See the [schema](schema/CONFIG.md) for details on the config parameters. Once the
+Create a `config.yaml` by using the `config.yaml.example` template. See the 
+[schema](schema/CONFIG.md) for details on the config parameters. Once the
 config file is filled out, run the demo.
 
 ```bash

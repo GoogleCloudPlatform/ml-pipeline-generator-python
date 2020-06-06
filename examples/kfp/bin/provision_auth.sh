@@ -30,14 +30,12 @@ gcloud services enable ml.googleapis.com \
   container.googleapis.com \
   containerregistry.googleapis.com
 
-if (( $(dpkg-query -W -f="${Status}" kubectl 2>/dev/null | grep -c "ok installed") != 0 ));
-then
-  sudo apt-get install kubectl
-fi
+gcloud container clusters update $CLUSTER_NAME \
+  --workload-pool="${PROJECT_ID}".svc.id.goog
 
-gcloud container clusters get-credentials "${CLUSTER_NAME}"
-
-./bin/workload_identity_setup.sh
+gcloud container node-pools update default-pool \
+  --cluster=$CLUSTER_NAME \
+  --workload-metadata=GKE_METADATA
 
 gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --member serviceAccount:"${CLUSTER_NAME}"-kfp-user@"${PROJECT_ID}".iam.gserviceaccount.com \

@@ -89,8 +89,7 @@ cp -r examples/kfp kfp-demo
 cd kfp-demo
 ```
 
-Create a `config.yaml` by using the `config.yaml.example` template. See the
-[Input args](#input-args) section for details on the config parameters. Once the
+Create a `config.yaml` by using the `config.yaml.example` template. See the [schema](schema/CONFIG.md) for details on the config parameters. Once the
 config file is filled out, run the demo.
 
 ```bash

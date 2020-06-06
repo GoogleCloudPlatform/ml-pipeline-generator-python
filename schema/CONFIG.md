@@ -1,7 +1,7 @@
 
 ### config.yaml schema
 
-Below schema should be used when preparing a config.yaml file for models using the tool. Some parameters are optional and marked as such.
+Below schema should be used when preparing a `config.yaml` file for models using the tool. Some parameters are optional and marked as such.
 
 <pre><code><b>project_id</b>: [project ID]
 <b>bucket_id</b>: [GCS bucket ID]

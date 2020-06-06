@@ -1,7 +1,8 @@
 
 ### hptune_config.yaml schema
 
-Below schema should be used when preparing a hptune_config.yaml file for models using the tool. Some parameters are optional and marked as such.
+Below schema should be used when preparing a `hptune_config.yaml` file for 
+models using the tool. The parameters follow the Cloud AI Platform [HyperparameterSpec](https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#HyperparameterSpec), some of which are optional and marked as such.
 
 <pre><code><b>trainingInput</b>:
 	<b>hyperparameters</b>:

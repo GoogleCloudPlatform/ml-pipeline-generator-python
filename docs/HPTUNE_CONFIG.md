@@ -10,7 +10,7 @@ Below schema should be used when preparing a `hptune_config.yaml` file for model
 			- <b>parameterName</b>: [unique parameter name, e.g. “learning_rate”]
 			  <b>type</b>: [parameter <a href="https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#ParameterType">type</a>]
 			  <b>minValue</b>: [min value for the parameter, if DOUBLE or INTEGER type]
-			 <b> maxValue</b>: [max value for the parameter, if DOUBLE or INTEGER type]
+			  <b>maxValue</b>: [max value for the parameter, if DOUBLE or INTEGER type]
 			  <b>scaleType</b>: [optional; how the parameter should be <a href="https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#ScaleType">scaled</a>]
 		<b>maxTrials</b>: [optional; how many training trials should be attempted to optimize the specified hyperparameters]
 		<b>maxParallelTrials</b>: [optional; the number of training trials to run concurrently]

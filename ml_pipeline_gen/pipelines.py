@@ -28,7 +28,6 @@ from ml_pipeline_gen.parsers import NestedNamespace
 from ml_pipeline_gen.parsers import parse_yaml
 
 
-
 class _Component(object):
     """A BasePipeline component (behaves like a tree)."""
 

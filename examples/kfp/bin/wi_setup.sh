@@ -18,45 +18,50 @@
 # Adapted for AI Platforms from https://github.com/kubeflow/pipelines/blob/master/manifests/kustomize/gcp-workload-identity-setup.sh
 #
 # What the script configures:
-#      1. Google service accounts (GSAs): $SYSTEM_GSA and $USER_GSA.
-#      2. Service account IAM policy bindings.
-#      3. Kubernetes service account annotations.
+#      1. Workload Identity for the cluster.
+#      2. Google service accounts (GSAs): $SYSTEM_GSA and $USER_GSA.
+#      3. Service account IAM policy bindings.
+#      4. Kubernetes service account annotations.
+#
+# Note: Since the node-pool is updated with WI, a new KFP hostname is generated.
 # 
 # Requirements:
 #      1. gcloud set up in the environment calling the script
-#      2. KFP is deployed on a GKE cluster
-#      3. kubectl is set to talk to the GKE cluster
+#      2. KFP is deployed on a GKE cluster 
 set -e
 
-# TODO(ashokpatelapk): Lint this shell script.
+# Cluster vars
+PROJECT_ID=$1
+CLUSTER_NAME=$2
+ZONE=$3
+NAMESPACE=$4
+
+echo "Workload Identity has not been provisioned for "${CLUSTER_NAME}", enabling it now..."
+
 # Google service Account (GSA)
-SYSTEM_GSA=${SYSTEM_GSA:-$CLUSTER_NAME-kfp-system}
-USER_GSA=${USER_GSA:-$CLUSTER_NAME-kfp-user}
+SYSTEM_GSA=$CLUSTER_NAME-kfp-system
+USER_GSA=$CLUSTER_NAME-kfp-user
 
 # Kubernetes Service Account (KSA)
 SYSTEM_KSA=(ml-pipeline-ui ml-pipeline-visualizationserver)
 USER_KSA=(pipeline-runner default)
-KSA_NAME=("$CLUSTER_NAME"-kfp-ksa)
 
-# Fetch the namespace env var, and set it to 'kubeflow' if no env var is set
-NAMESPACE=${NAMESPACE:-kubeflow}
+gcloud container clusters get-credentials $CLUSTER_NAME
 
-if [ -z "$PROJECT_ID" ]; then
-  echo "Error: PROJECT_ID env variable is empty!"
-  exit 1
-fi
+gcloud container clusters update $CLUSTER_NAME \
+  --zone $ZONE \
+  --workload-pool "${PROJECT_ID}".svc.id.goog 
 
-if [ -z "$CLUSTER_NAME" ]; then
-  echo "Error: CLUSTER_NAME env variable is empty!"
-  exit 1
-fi
+gcloud beta container node-pools update default-pool \
+  --cluster=$CLUSTER_NAME \
+  --max-surge-upgrade=3 \
+  --max-unavailable-upgrade=0
 
-echo "Env variables set:"
-echo "* PROJECT_ID=$PROJECT_ID"
-echo "* CLUSTER_NAME=$CLUSTER_NAME"
-echo "* NAMESPACE=$NAMESPACE"
+gcloud container node-pools update default-pool \
+  --cluster $CLUSTER_NAME \
+  --workload-metadata GKE_METADATA
 
-echo "Creating Google service accounts..."
+echo "Creating Google Service Accounts..."
 function create_gsa_if_not_present {
   local name=${1}
   local already_present=$(gcloud iam service-accounts list --filter='name:'$name'' --format='value(name)')
@@ -69,13 +74,6 @@ function create_gsa_if_not_present {
 
 create_gsa_if_not_present $SYSTEM_GSA
 create_gsa_if_not_present $USER_GSA
-
-function create_ksa {
-    local ksa=${1}
-    kubectl create serviceaccount --namespace $NAMESPACE $ksa
-}
-
-# create_ksa $KSA_NAME
 
 # Add iam policy bindings to grant project permissions to these GSAs.
 gcloud projects add-iam-policy-binding $PROJECT_ID \
@@ -104,10 +102,15 @@ function bind_gsa_and_ksa {
 }
 
 echo "Binding each kfp system KSA to $SYSTEM_GSA"
-for ksa in ${KSA_NAME[@]}; do
+for ksa in ${SYSTEM_KSA[@]}; do
   bind_gsa_and_ksa $SYSTEM_GSA $ksa
 done
-# echo "Binding each kfp user KSA to $USER_GSA"
-# for ksa in ${USER_KSA[@]}; do
-#   bind_gsa_and_ksa $USER_GSA $ksa
-# done
+
+echo "Binding each kfp user KSA to $USER_GSA"
+for ksa in ${USER_KSA[@]}; do
+  bind_gsa_and_ksa $USER_GSA $ksa
+done
+
+gcloud container clusters update $CLUSTER_NAME --update-labels mlpg_wi_auth=true
+
+echo "Workload Identity has been enabled, please update the hostname in config.yaml and redeploy the model."

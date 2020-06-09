@@ -33,6 +33,7 @@ setuptools.setup(
         'cloudml-hypertune',
         'gcsfs',
         'google-api-python-client',
+        'google-cloud-container',
         'jinja2',
         'joblib',
         'kfp',

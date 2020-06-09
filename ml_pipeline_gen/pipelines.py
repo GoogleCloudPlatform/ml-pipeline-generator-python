@@ -17,10 +17,13 @@ import abc
 import json
 import os
 from os import path
+import sys
+import subprocess
 import pathlib
+import datetime as dt
 import jinja2 as jinja
 
-import datetime as dt
+from google.cloud import container_v1
 from ml_pipeline_gen.parsers import NestedNamespace
 from ml_pipeline_gen.parsers import parse_yaml
 
@@ -145,6 +148,36 @@ class BasePipeline(abc.ABC):
 
 class KfpPipeline(BasePipeline):
     """KubeFlow Pipelines class."""
+
+    def __init__(self, model=None, config=None):
+        super().__init__(model, config)
+        self.setup_auth()
+
+    def setup_auth(self):
+        """Calls shell script to verify required auth for KFP cluster."""
+        if not self.check_cluster_label("mlpg_wi_auth"):
+            model = self.model
+            subprocess.call([
+                "bin/wi_setup.sh",
+                model.project_id,
+                model.cluster_name,
+                model.cluster_zone,
+                # TODO(ashokpatelapk): Check if namespace can be a config var.
+                "default"
+            ])
+            sys.exit()
+
+    def check_cluster_label(self, label):
+        """Checks a specifed resourceLabel for a GKE cluster"""
+        model = self.model
+        client = container_v1.ClusterManagerClient()
+        cluster_name = "projects/{0}/locations/{1}/clusters/{2}".format(
+            model.project_id,
+            model.cluster_zone,
+            model.cluster_name
+        )
+        response = client.get_cluster(name=cluster_name)
+        return response.resource_labels[label] == "true"
 
     def _get_train_params(self):
         """Returns parameters for training on CAIP."""

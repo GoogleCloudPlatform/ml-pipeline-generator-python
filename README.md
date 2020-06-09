@@ -41,9 +41,9 @@ storage-component.googleapis.com
 
 ### Python environment
 ```bash
-python3 -m venv venv
+python -m venv venv
 source ./venv/bin/activate
-pip3 install ml-pipeline-gen
+pip install ml-pipeline-gen
 ```
 
 ### Kubeflow Pipelines 
@@ -65,7 +65,7 @@ Create a `config.yaml` by using the `config.yaml.example` template. See the
 config file is filled out, run the demo.
 
 ```bash
-python3 demo.py
+python demo.py
 ```
 
 Running this demo uses the config file to generate a `trainer/` module that is
@@ -86,7 +86,7 @@ Create a `config.yaml` by using the `config.yaml.example` template. See the
 config file is filled out, run the demo.
 
 ```bash
-python3 demo.py
+python demo.py
 ```
 
 Running this demo uses the config file to generate a `trainer/` module that is
@@ -101,7 +101,7 @@ directory to test discover. Read more about `unittest`
 [here](https://docs.python.org/3/library/unittest.html).
 
 ```bash
-python3 -m unittest
+python -m unittest
 ```
 ## Input args
 The following input args are included by default. Overwrite them by adding them
@@ -126,5 +126,5 @@ as inputs in the config file.
 To modify the behavior of the library, install `ml-pipeline-gen` using:
 
 ```bash
-pip3 install -e ".[dev]"
+pip install -e ".[dev]"
 ```

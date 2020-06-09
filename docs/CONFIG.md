@@ -1,11 +1,13 @@
-
 ### config.yaml schema
 
 Below schema should be used when preparing a `config.yaml` file for models using the tool. Some parameters are optional and marked as such.
 
-<pre><code><b>project_id</b>: [project ID]
+<pre>
+<b>project_id</b>: [project ID]
 <b>bucket_id</b>: [GCS bucket ID]
 <b>region</b>: [GCP region to train ML Pipeline Generator models in, on AI Platform]
+<b>cluster_name</b>: [Name of GKE cluster hosting Kubeflow Pipelines]
+<b>cluster_zone</b>: [Zone in which GKE cluster is deployed]
 <b>scale_tier</b>: [compute <a href="https://cloud.google.com/ai-platform/training/docs/machine-types#scale_tiers">specifications</a> for training the model on AI Platform]
 <b>runtime_version</b>: [AI Platform Training <a href="https://cloud.google.com/ai-platform/training/docs/runtime-version-list">runtime version</a>]
 <b>python_version</b>: [Python version used in the model code for training]
@@ -39,4 +41,5 @@ Below schema should be used when preparing a `config.yaml` file for models using
 	<b>explanation</b>: [optional; <a href="https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.models.versions#explanationconfig">explainability features</a> for the training job]
 
 <b>orchestration</b>:
-	<b>kubeflow_url</b>: [for KFP backend; URL of preconfigured Kubeflow instance]<code></pre>
+	<b>kubeflow_url</b>: [for KFP backend; URL of preconfigured Kubeflow instance]
+</pre>

@@ -1,10 +1,9 @@
-
 ### hptune_config.yaml schema
 
-Below schema should be used when preparing a `hptune_config.yaml` file for 
-models using the tool. The parameters follow the Cloud AI Platform [HyperparameterSpec](https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#HyperparameterSpec), some of which are optional and marked as such.
+Below schema should be used when preparing a `hptune_config.yaml` file for models using the tool. The parameters follow the Cloud AI Platform [HyperparameterSpec](https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#HyperparameterSpec), some of which are optional and marked as such.
 
-<pre><code><b>trainingInput</b>:
+<pre>
+<b>trainingInput</b>:
 	<b>hyperparameters</b>:
 		<b>goal</b>: [the type of goal to use for tuning, MAXIMIZE or MINIMIZE]
 		<b>params</b>: [the set of parameters to tune]
@@ -19,4 +18,5 @@ models using the tool. The parameters follow the Cloud AI Platform [Hyperparamet
 		<b>hyperparameterMetricTag</b>: [optional; TensorFlow summary tag name to use for optimizing trials]
 		<b>resumePreviousJobId</b>: [optional; the prior hyperparameter tuning job id that users hope to continue with]
 		<b>enableTrialEarlyStopping</b>: [optional; indicates if the hyperparameter tuning job enables auto trial early stopping]
-		<b>algorithm</b>: [optional; search <a href="https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#Algorithm">algorithm</a> to be used]<code></pre>
+		<b>algorithm</b>: [optional; search <a href="https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#Algorithm">algorithm</a> to be used]
+</pre>

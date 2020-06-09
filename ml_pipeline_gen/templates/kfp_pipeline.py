@@ -54,8 +54,7 @@ def get_train_op(github_url, prev_op_id=""):
     params["job_id_prefix"] += prev_op_id
     mlengine_train_op = kfp.components.load_component_from_url(
         "{}/ml_engine/train/component.yaml".format(github_url))
-    train_op = mlengine_train_op(**params).apply(
-        gcp.use_gcp_secret("user-gcp-sa"))
+    train_op = mlengine_train_op(**params)
     return train_op
 
 
@@ -73,8 +72,7 @@ def get_model_path_op(prev_op_id):
     model_path_op = make_op_func(get_model_path)(prev_op_id)
     list_blobs = kfp.components.load_component(
         "orchestration/components/list_blobs.yaml")
-    gsutil_op = list_blobs(model_path_op.outputs["model_path"]).apply(
-        gcp.use_gcp_secret("user-gcp-sa"))
+    gsutil_op = list_blobs(model_path_op.outputs["model_path"])
     return gsutil_op
 
 
@@ -102,8 +100,7 @@ def get_deploy_op(github_url, prev_op_id=""):
 
     mlengine_deploy_op = kfp.components.load_component_from_url(
         "{}/ml_engine/deploy/component.yaml".format(github_url))
-    deploy_op = mlengine_deploy_op(**params).apply(
-        gcp.use_gcp_secret("user-gcp-sa"))
+    deploy_op = mlengine_deploy_op(**params)
     return deploy_op
 
 
@@ -132,8 +129,7 @@ def get_predict_op(github_url, prev_op_id="", version_name=""):
         params["model_path"] = version_name
     mlengine_batch_predict_op = kfp.components.load_component_from_url(
         "{}/ml_engine/batch_predict/component.yaml".format(github_url))
-    predict_op = mlengine_batch_predict_op(**params).apply(
-        gcp.use_gcp_secret("user-gcp-sa"))
+    predict_op = mlengine_batch_predict_op(**params)
     return predict_op
 
 

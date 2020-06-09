@@ -108,9 +108,16 @@ within this project. Tests can be run on a more granular level by feeding a
 directory to test discover. Read more about `unittest`
 [here](https://docs.python.org/3/library/unittest.html).
 
+Unit tests:
 ```bash
-python -m unittest
+python -m unittest discover -s tests/unit
 ```
+
+Integration tests:
+```bash
+python -m unittest discover -s tests/integration
+```
+
 ## Input args
 The following input args are included by default. Overwrite them by adding them
 as inputs in the config file.

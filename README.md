@@ -61,7 +61,7 @@ cd sklearn-demo
 ```
 
 Create a `config.yaml` by using the `config.yaml.example` template. See the
-[schema](schema/CONFIG.md) for details on the config parameters. Once the
+[docs](docs/CONFIG.md) for details on the config parameters. Once the
 config file is filled out, run the demo.
 
 ```bash
@@ -82,7 +82,7 @@ cd kfp-demo
 ```
 
 Create a `config.yaml` by using the `config.yaml.example` template. See the 
-[schema](schema/CONFIG.md) for details on the config parameters. Once the
+[docs](docs/CONFIG.md) for details on the config parameters. Once the
 config file is filled out, run the demo.
 
 ```bash

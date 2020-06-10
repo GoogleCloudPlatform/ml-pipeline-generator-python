@@ -183,7 +183,7 @@ class KfpPipeline(BasePipeline):
             try:
                 response = instance.read_namespaced_config_map(name, namespace)
             except ApiException as e:
-                print("Exception -> CoreV1Api: %s\n" % e)
+                print("Exception -> CoreV1Api: {}}".format(e))
         print("Waiting for KFP Dashboard to be updated...")
         time.sleep(30)
         self.model.orchestration["host"] = response.data["Hostname"]

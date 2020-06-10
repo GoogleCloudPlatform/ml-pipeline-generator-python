@@ -16,6 +16,7 @@
 
 import kfp
 import kfp.gcp as gcp
+from kfp_server_api.rest import ApiException
 from typing import NamedTuple
 
 
@@ -168,8 +169,11 @@ def main(compile=False):
     if compile:
         kfp.compiler.Compiler().compile(train_pipeline, "train_pipeline.tar.gz")
 
-    client = kfp.Client(host="{{ host }}")
-    client.create_run_from_pipeline_func(train_pipeline, arguments={})
+    try:
+      client = kfp.Client(host="{{ host }}")
+      client.create_run_from_pipeline_func(train_pipeline, arguments={})
+    except ApiException as e:
+      print("{0}: KFP Dashboard unreachable. Please update the config.yaml with latest hostname.".format(e.reason))
 
 
 if __name__ == "__main__":

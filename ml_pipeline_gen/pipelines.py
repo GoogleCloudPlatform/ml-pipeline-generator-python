@@ -17,13 +17,15 @@ import abc
 import json
 import os
 from os import path
-import sys
 import subprocess
 import pathlib
+import time
 import datetime as dt
 import jinja2 as jinja
 
 from google.cloud import container_v1
+from kubernetes import client, config
+from kubernetes.client.rest import ApiException
 from ml_pipeline_gen.parsers import NestedNamespace
 from ml_pipeline_gen.parsers import parse_yaml
 
@@ -151,21 +153,45 @@ class KfpPipeline(BasePipeline):
 
     def __init__(self, model=None, config=None):
         super().__init__(model, config)
-        self.setup_auth()
+        if not self.check_cluster_label("mlpg_wi_auth"):
+            self.setup_auth()
+            self.update_hostname()
 
     def setup_auth(self):
-        """Calls shell script to verify required auth for KFP cluster."""
-        if not self.check_cluster_label("mlpg_wi_auth"):
-            model = self.model
-            subprocess.call([
-                "bin/wi_setup.sh",
-                model.project_id,
-                model.cluster_name,
-                model.cluster_zone,
-                # TODO(ashokpatelapk): Check if namespace can be a config var.
-                "default"
-            ])
-            sys.exit()
+        """Calls shell script to verify required auth for KFP cluster.
+
+        The called script checks if the GKE cluster has Workload Identity enabled
+        and configured with a custom label, and if not, enables it and updates
+        the label.
+        """
+        model = self.model
+        subprocess.call([
+            "bin/wi_setup.sh",
+            model.project_id,
+            model.cluster_name,
+            model.cluster_zone,
+            # TODO(ashokpatelapk): Check if namespace can be a config var.
+            "default"
+        ])
+
+    def update_hostname(self):
+        """Updates Hostname (URL) of model object using current kube context."""
+        # Checks default kubectl context from ~/.kube/config
+        config.load_kube_config()
+        name = "inverse-proxy-config"
+        namespace = "default"
+        instance = client.CoreV1Api()
+        response = instance.read_namespaced_config_map(name, namespace)
+        while response.data is None:
+            print("Waiting for KFP Dashboard to be updated...")
+            time.sleep(10)
+            try:
+                response = instance.read_namespaced_config_map(name, namespace)
+            except ApiException as e:
+                print("Exception -> CoreV1Api: {}}".format(e))
+        print("Waiting for KFP Dashboard to be updated...")
+        time.sleep(30)
+        self.model.orchestration["host"] = response.data["Hostname"]
 
     def check_cluster_label(self, label):
         """Checks a specifed resourceLabel for a GKE cluster"""

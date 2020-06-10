@@ -14,8 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Script to set up Google service accounts and workload identity bindings for a Kubeflow Pipelines (KFP) standalone deployment.
-# Adapted for AI Platforms from https://github.com/kubeflow/pipelines/blob/master/manifests/kustomize/gcp-workload-identity-setup.sh
+# Script to set up Google service accounts and workload identity bindings for a 
+# Kubeflow Pipelines (KFP) standalone deployment.
+#
+# The script checks if the GKE cluster has Workload Identity enabled and 
+# configured with a custom label, and if not, enables it and updates the label.
+# 
+# Adapted for ML Pipeline Generator from https://github.com/kubeflow/pipelines/blob/master/manifests/kustomize/gcp-workload-identity-setup.sh
 #
 # What the script configures:
 #      1. Workload Identity for the cluster.
@@ -23,7 +28,7 @@
 #      3. Service account IAM policy bindings.
 #      4. Kubernetes service account annotations.
 #
-# Note: Since the node-pool is updated with WI, a new KFP hostname is generated.
+# Note: Since the node pool is updated with WI, a new KFP hostname is generated.
 # 
 # Requirements:
 #      1. gcloud set up in the environment calling the script
@@ -36,7 +41,7 @@ CLUSTER_NAME=$2
 ZONE=$3
 NAMESPACE=$4
 
-echo "Workload Identity has not been provisioned for "${CLUSTER_NAME}", enabling it now..."
+echo "Workload Identity has not been provisioned for "${CLUSTER_NAME}" ("${ZONE}"), enabling it now..."
 
 # Google service Account (GSA)
 SYSTEM_GSA=$CLUSTER_NAME-kfp-system
@@ -46,20 +51,23 @@ USER_GSA=$CLUSTER_NAME-kfp-user
 SYSTEM_KSA=(ml-pipeline-ui ml-pipeline-visualizationserver)
 USER_KSA=(pipeline-runner default)
 
-gcloud container clusters get-credentials $CLUSTER_NAME
+gcloud container clusters get-credentials $CLUSTER_NAME \
+  --zone=$ZONE
 
 gcloud container clusters update $CLUSTER_NAME \
-  --zone $ZONE \
-  --workload-pool "${PROJECT_ID}".svc.id.goog 
+  --zone=$ZONE \
+  --workload-pool="${PROJECT_ID}".svc.id.goog 
 
 gcloud beta container node-pools update default-pool \
   --cluster=$CLUSTER_NAME \
-  --max-surge-upgrade=3 \
+  --zone=$ZONE \
+  --max-surge-upgrade=3 \  
   --max-unavailable-upgrade=0
 
 gcloud container node-pools update default-pool \
-  --cluster $CLUSTER_NAME \
-  --workload-metadata GKE_METADATA
+  --cluster=$CLUSTER_NAME \
+  --zone=$ZONE \
+  --workload-metadata=GKE_METADATA
 
 echo "Creating Google Service Accounts..."
 function create_gsa_if_not_present {
@@ -111,6 +119,10 @@ for ksa in ${USER_KSA[@]}; do
   bind_gsa_and_ksa $USER_GSA $ksa
 done
 
-gcloud container clusters update $CLUSTER_NAME --update-labels mlpg_wi_auth=true
+gcloud container clusters update $CLUSTER_NAME \
+  --zone=$ZONE
+  --update-labels mlpg_wi_auth=true
 
-echo "Workload Identity has been enabled, please update the hostname in config.yaml and redeploy the model."
+RED='\033[0;31m'
+COLOR_RESET='\033[0m'
+echo -e "${RED}Workload Identity has been enabled, and KFP dashboard URL has been updated. Please update the hostname in config.yaml for future runs.${COLOR_RESET}"

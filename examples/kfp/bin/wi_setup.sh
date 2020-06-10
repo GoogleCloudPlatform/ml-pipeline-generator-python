@@ -47,22 +47,22 @@ SYSTEM_KSA=(ml-pipeline-ui ml-pipeline-visualizationserver)
 USER_KSA=(pipeline-runner default)
 
 gcloud container clusters get-credentials $CLUSTER_NAME \
-  --zone $ZONE
+  --zone=$ZONE
 
 gcloud container clusters update $CLUSTER_NAME \
-  --zone $ZONE \
-  --workload-pool "${PROJECT_ID}".svc.id.goog 
+  --zone=$ZONE \
+  --workload-pool="${PROJECT_ID}".svc.id.goog 
 
 gcloud beta container node-pools update default-pool \
   --cluster=$CLUSTER_NAME \
-  --zone $ZONE \
+  --zone=$ZONE \
   --max-surge-upgrade=3 \  
   --max-unavailable-upgrade=0
 
 gcloud container node-pools update default-pool \
-  --cluster $CLUSTER_NAME \
-  --zone $ZONE \
-  --workload-metadata GKE_METADATA
+  --cluster=$CLUSTER_NAME \
+  --zone=$ZONE \
+  --workload-metadata=GKE_METADATA
 
 echo "Creating Google Service Accounts..."
 function create_gsa_if_not_present {
@@ -114,7 +114,9 @@ for ksa in ${USER_KSA[@]}; do
   bind_gsa_and_ksa $USER_GSA $ksa
 done
 
-gcloud container clusters update $CLUSTER_NAME --update-labels mlpg_wi_auth=true
+gcloud container clusters update $CLUSTER_NAME \
+  --zone=$ZONE
+  --update-labels mlpg_wi_auth=true
 
 RED='\033[0;31m'
 COLOR_RESET='\033[0m'

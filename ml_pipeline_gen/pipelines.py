@@ -158,7 +158,12 @@ class KfpPipeline(BasePipeline):
             self.update_hostname()
 
     def setup_auth(self):
-        """Calls shell script to verify required auth for KFP cluster."""
+        """Calls shell script to verify required auth for KFP cluster.
+
+        The called script checks if the GKE cluster has Workload Identity enabled
+        and configured with a custom label, and if not, enables it and updates
+        the label.
+        """
         model = self.model
         subprocess.call([
             "bin/wi_setup.sh",
@@ -170,7 +175,7 @@ class KfpPipeline(BasePipeline):
         ])
 
     def update_hostname(self):
-        """Returns Hostname (URL) of KFP cluster in current kube context."""
+        """Updates Hostname (URL) of model object using current kube context."""
         # Checks default kubectl context from ~/.kube/config
         config.load_kube_config()
         name = "inverse-proxy-config"

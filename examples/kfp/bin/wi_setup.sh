@@ -14,8 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Script to set up Google service accounts and workload identity bindings for a Kubeflow Pipelines (KFP) standalone deployment.
-# Adapted for AI Platforms from https://github.com/kubeflow/pipelines/blob/master/manifests/kustomize/gcp-workload-identity-setup.sh
+# Script to set up Google service accounts and workload identity bindings for a 
+# Kubeflow Pipelines (KFP) standalone deployment.
+#
+# The script checks if the GKE cluster has Workload Identity enabled and 
+# configured with a custom label, and if not, enables it and updates the label.
+# 
+# Adapted for ML Pipeline Generator from https://github.com/kubeflow/pipelines/blob/master/manifests/kustomize/gcp-workload-identity-setup.sh
 #
 # What the script configures:
 #      1. Workload Identity for the cluster.
@@ -23,7 +28,7 @@
 #      3. Service account IAM policy bindings.
 #      4. Kubernetes service account annotations.
 #
-# Note: Since the node-pool is updated with WI, a new KFP hostname is generated.
+# Note: Since the node pool is updated with WI, a new KFP hostname is generated.
 # 
 # Requirements:
 #      1. gcloud set up in the environment calling the script

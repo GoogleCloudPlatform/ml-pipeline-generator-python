@@ -14,11 +14,11 @@
 #
 # Config file for ML Pipeline Generator.
 
-project_id: [PROJECT ID]
-bucket_id: [BUCKET ID]
+project_id: "ml-pipeline-gen"
+bucket_id: "ml-pipeline-gen-test"
+cluster_name: "cluster-test"
 region: "us-central1"
-cluster_name: [GKE CLUSTER NAME]
-cluster_zone: [GKE CLUSTER ZONE]
+zone: "us-central1-a"
 scale_tier: "STANDARD_1"
 runtime_version: "1.15"
 python_version: "3.7"
@@ -39,35 +39,24 @@ data:
         - "hours_per_week"
         - "native_country"
         - "income_bracket"
-    train: "gs://[BUCKET ID]/[MODEL NAME]/data/adult.data.csv"
-    evaluation: "gs://[BUCKET ID]/[MODEL NAME]/data/adult.test.csv"
+    train: "gs://ml-pipeline-gen-test/test_model/data/adult.data.csv"
+    evaluation: "gs://ml-pipeline-gen-test/test_model/data/adult.test.csv"
     prediction:
         input_data_paths:
-            - "gs://[BUCKET ID]/[MODEL NAME]/inputs/*"
+            - "gs://ml-pipeline-gen-test/test_model/inputs/*"
         input_format: "JSON"
         output_format: "JSON"
 
 model:
     # Name must start with a letter and only contain letters, numbers, and
     # underscores.
-    name: [MODEL NAME]
-    path: "model.tf_model"
+    name: "test_model"
+    path: "model.test_model"
     target: "income_bracket"
     metrics:
         - "accuracy"
 
 model_params:
-    input_args:
-        first_layer_size:
-            type: "int"
-            help: "Size of the NN first layer."
-            default: 50
-        num_layers:
-            type: "int"
-            help: "Number of layers in the NN."
-            default: 5
-        max_steps:
-            default: 1000
     # Relative path.
     hyperparam_config: "hptuning_config.yaml"
     explain_output:
@@ -77,4 +66,4 @@ model_params:
             value: 40
 
 orchestration:
-    host: [KFP DASHBOARD URL]
+    host: "https://5e892ccf4c09b627-dot-us-central2.pipelines.googleusercontent.com"

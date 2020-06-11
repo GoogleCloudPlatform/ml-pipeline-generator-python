@@ -93,10 +93,10 @@ Running this demo uses the config file to generate a `trainer/` module that is
 compatible with CAIP. It also generates `orchestration/pipeline.py`, which
 compiles a Kubeflow Pipelines pipeline.
 
-> Note: If you're using a GKE cluster without Workload Identity configured, the 
+_Note: If you're using a GKE cluster without Workload Identity configured, the 
 tool provisions Workload Identity for the GKE cluster which modifies the 
-dashboard URL. To deploy your model, simply update the URL in config.yaml and 
-run the demo again.
+dashboard URL. If this occurs, you will need to update the your config.yaml with 
+the new Kubeflow Pipelines URL and rerun the demo._
 
 ## Tests
 The tests use `unittest`, Python's built-in unit testing framework. By running

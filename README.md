@@ -52,7 +52,7 @@ Once the instance is provisioned, note down the hostname (Dashboard URL).
 
 ## End to end tutorial notebook
 You can view the notebook [here](https://github.com/GoogleCloudPlatform/ml-pipeline-generator-python/examples/getting_started_notebook.ipynb)
-which can run on your local juypter  notebook, Cloud AI Platform and 
+which can run on your local jupyter  notebook, Cloud AI Platform and 
 Colab. This takes you through how a typical user would leverage this solution.
 
 ## Cloud AI Platform Demo

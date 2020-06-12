@@ -50,6 +50,11 @@ pip install ml-pipeline-gen
 Create a Kubeflow Pipelines instance on [AI Platform Pipelines](https://console.cloud.google.com/ai-platform/pipelines). 
 Once the instance is provisioned, note down the hostname (Dashboard URL).
 
+## End to end tutorial notebook
+You can view the notebook [here](https://github.com/GoogleCloudPlatform/ml-pipeline-generator-python/examples/getting_started_notebook.ipynb)
+which can run on your local jupyter  notebook, Cloud AI Platform and 
+Colab. This takes you through how a typical user would leverage this solution.
+
 ## Cloud AI Platform Demo
 This demo uses the scikit-learn model in
 `examples/sklearn/model/sklearn_model.py` to create a training module to run on

@@ -30,7 +30,7 @@ setuptools.setup(
     url='https://github.com/GoogleCloudPlatform/ml-pipeline-generator-python',
     packages=['ml_pipeline_gen'],
     install_requires=[
-        'cloudml-hypertune>=0.1.0',
+        'cloudml-hypertune>=0.1.0.dev6',
         'gcsfs>=0.6.2',
         'google-api-python-client>=1.9.3',
         'google-cloud-container>=0.5.0',

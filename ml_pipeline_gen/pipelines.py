@@ -170,16 +170,15 @@ class KfpPipeline(BasePipeline):
             model.project_id,
             model.cluster_name,
             model.cluster_zone,
-            # TODO(ashokpatelapk): Check if namespace can be a config var.
-            "default"
+            "kubeflow"
         ])
 
     def update_hostname(self):
         """Updates Hostname (URL) of model object using current kube context."""
-        # Checks default kubectl context from ~/.kube/config
+        # Checks kubectl context from ~/.kube/config
         config.load_kube_config()
         name = "inverse-proxy-config"
-        namespace = "default"
+        namespace = "kubeflow"
         instance = client.CoreV1Api()
         response = instance.read_namespaced_config_map(name, namespace)
         while response.data is None:

@@ -46,9 +46,19 @@ source ./venv/bin/activate
 pip install ml-pipeline-gen
 ```
 
-### Kubeflow Pipelines 
-Create a Kubeflow Pipelines instance on [AI Platform Pipelines](https://console.cloud.google.com/ai-platform/pipelines). 
+### Kubeflow Pipelines
+If you'd like to use Kubeflow Pipelines as the orchestration backend, create a Kubeflow Pipelines cluster using one of the two methods:
+
+1. **Using AI Platform Pipelines:** Create a Kubeflow Pipelines instance on [AI Platform Pipelines](https://console.cloud.google.com/ai-platform/pipelines). 
 Once the instance is provisioned, note down the hostname (Dashboard URL).
+1. **Manual installation:** If you'd like to fine tune your KFP deployment on 
+GKE clusters (such as changing the machine type, zone or deploying a specific [version](https://github.com/kubeflow/pipelines/releases) of KFP), you can use the [`ml_pipeline_gen/bin/setup_cluster.sh`](ml_pipeline_gen/bin/setup_cluster.sh) script as:
+    ```bash
+    ./setup_cluster.sh -n GKE_CLUSTER_NAME -z GKE_CLUSTER_ZONE [-m MACHINE_TYPE] [-v KFP_VERSION]
+    ```
+    Specify the name of GKE cluster and its zone using `-n` and `-z` flags, and optionally specify the machine type and KFP version using `-m` and `v` flags, respectively. The script will create a new GKE cluster in the specified zone 
+    (if it doesn't exist) with a standalone KFP deployment which can be managed 
+    in GCP [console](https://console.cloud.google.com/ai-platform/pipelines). Note down the hostname (Dashboard URL) of this KFP instance.
 
 ## End to end tutorial notebook
 You can view the notebook [here](https://github.com/GoogleCloudPlatform/ml-pipeline-generator-python/examples/getting_started_notebook.ipynb)
@@ -100,7 +110,7 @@ compiles a Kubeflow Pipelines pipeline.
 
 _Note: If you're using a GKE cluster without Workload Identity configured, the 
 tool provisions Workload Identity for the GKE cluster which modifies the 
-dashboard URL. If this occurs, you will need to update the your config.yaml with 
+dashboard URL. If this occurs, you will need to update your config.yaml with 
 the new Kubeflow Pipelines URL and rerun the demo._
 
 ## Tests

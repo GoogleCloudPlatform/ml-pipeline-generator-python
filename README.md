@@ -51,7 +51,7 @@ Create a Kubeflow Pipelines instance on [AI Platform Pipelines](https://console.
 Once the instance is provisioned, note down the hostname (Dashboard URL).
 
 ## End to end tutorial notebook
-You can view the notebook [here](https://github.com/GoogleCloudPlatform/ml-pipeline-generator-python/examples/getting_started_notebook.ipynb)
+You can view the notebook [here](https://github.com/GoogleCloudPlatform/ml-pipeline-generator-python/blob/master/examples/getting_started_notebook.ipynb)
 which can run on your local jupyter  notebook, Cloud AI Platform and 
 Colab. This takes you through how a typical user would leverage this solution.
 

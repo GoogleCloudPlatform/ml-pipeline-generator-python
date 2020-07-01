@@ -52,7 +52,7 @@ If you'd like to use Kubeflow Pipelines as the orchestration backend, create a K
 1. **Using AI Platform Pipelines:** Create a Kubeflow Pipelines instance on [AI Platform Pipelines](https://console.cloud.google.com/ai-platform/pipelines). 
 Once the instance is provisioned, note down the hostname (Dashboard URL).
 1. **Manual installation:** If you'd like to fine tune your KFP deployment on 
-GKE clusters (such as changing the machine type, zone or deploying a specific [version](https://github.com/kubeflow/pipelines/releases) of KFP), you can use the [`ml_pipeline_gen/bin/setup_cluster.sh`](ml_pipeline_gen/bin/setup_cluster.sh) script as:
+GKE clusters (such as changing the machine type, zone or deploying a specific [version](https://github.com/kubeflow/pipelines/releases) of KFP), you can use the [`ml_pipeline_gen/static/bin/setup_cluster.sh`](ml_pipeline_gen/static/bin/setup_cluster.sh) script as:
     ```bash
     ./setup_cluster.sh -n GKE_CLUSTER_NAME -z GKE_CLUSTER_ZONE [-m MACHINE_TYPE] [-v KFP_VERSION]
     ```

@@ -173,6 +173,14 @@ class KfpPipeline(BasePipeline):
             "kubeflow"
         ])
 
+    def kfp_setup(self, cluster_name="mlpg-kfp-cluster", cluster_zone="us-central1-a"):
+        """Calls shell script to create a new GKE cluster with WI configured."""
+        subprocess.call([
+            "static/bin/setup_cluster.sh",
+            cluster_name,
+            cluster_zone
+        ])
+
     def update_hostname(self):
         """Updates Hostname (URL) of model object using current kube context."""
         # Checks kubectl context from ~/.kube/config

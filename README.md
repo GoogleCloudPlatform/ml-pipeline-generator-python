@@ -140,7 +140,7 @@ as inputs in the config file.
 | early_stopping_steps | Number of steps with no loss decrease before stopping early. |
 
 ## Contribute
-To modify the behavior of the library, install `ml-pipeline-gen` using:
+To modify the behaviour of the library, install `ml-pipeline-gen` using:
 
 ```bash
 pip install -e ".[dev]"

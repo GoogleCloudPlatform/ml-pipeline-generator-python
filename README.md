@@ -131,7 +131,7 @@ as inputs in the config file.
 | model_dir | Dir or bucket to save model files. |
 | batch_size | Number of rows of data to be fed into the model each iteration. |
 | max_steps | The maximum number of iterations to train the model for. |
-| learning_rate| Multiplier that controls how much the weights of our network are adjusted with respoect to the loss gradient.|
+| learning_rate| Multiplier that controls how much the weights of our network are adjusted with respect to the loss gradient.|
 | export_format | File format expected by the exported model at inference time. |
 | save_checkpoints_steps | Number of steps to run before saving a model checkpoint. |
 | keep_checkpoint_max | Number of model checkpoints to keep. |

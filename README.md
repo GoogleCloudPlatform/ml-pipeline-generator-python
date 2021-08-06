@@ -61,7 +61,7 @@ GKE clusters (such as changing the machine type, zone or deploying a specific [v
     in GCP [console](https://console.cloud.google.com/ai-platform/pipelines). Note down the hostname (Dashboard URL) of this KFP instance.
 
 ## End to end tutorial notebook
-You can view the notebook [here](https://github.com/GoogleCloudPlatform/ml-pipeline-generator-python/examples/getting_started_notebook.ipynb)
+You can view the notebook [here](https://github.com/GoogleCloudPlatform/ml-pipeline-generator-python/blob/master/examples/getting_started_notebook.ipynb)
 which can run on your local jupyter  notebook, Cloud AI Platform and 
 Colab. This takes you through how a typical user would leverage this solution.
 
@@ -141,7 +141,7 @@ as inputs in the config file.
 | model_dir | Dir or bucket to save model files. |
 | batch_size | Number of rows of data to be fed into the model each iteration. |
 | max_steps | The maximum number of iterations to train the model for. |
-| learning_rate| Multiplier that controls how much the weights of our network are adjusted with respoect to the loss gradient.|
+| learning_rate| Multiplier that controls how much the weights of our network are adjusted with respect to the loss gradient.|
 | export_format | File format expected by the exported model at inference time. |
 | save_checkpoints_steps | Number of steps to run before saving a model checkpoint. |
 | keep_checkpoint_max | Number of model checkpoints to keep. |

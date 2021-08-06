@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# Copyright 2020 Google LLC
+# Copyright 2020 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,34 +14,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Script to set up Google service accounts and workload identity bindings for a 
-# Kubeflow Pipelines (KFP) standalone deployment.
-#
-# The script checks if the GKE cluster has Workload Identity enabled and 
-# configured with a custom label, and if not, enables it and updates the label.
-# 
-# Adapted for ML Pipeline Generator from https://github.com/kubeflow/pipelines/blob/master/manifests/kustomize/gcp-workload-identity-setup.sh
-#
-# What the script configures:
-#      1. Workload Identity for the cluster.
-#      2. Google service accounts (GSAs): $SYSTEM_GSA and $USER_GSA.
-#      3. Service account IAM policy bindings.
-#      4. Kubernetes service account annotations.
-#
-# Note: Since the node pool is updated with WI, a new KFP hostname is generated.
-# 
-# Requirements:
-#      1. gcloud set up in the environment calling the script
-#      2. KFP is deployed on a GKE cluster 
-set -e
+# Script to create a Kubeflow Pipelines cluster and configure it with Workload
+# Identity to allow the K8s cluster to access other GCP resources such as GCS.
+usage() {
+  echo "Usage: ./setup_cluster.sh -n GKE_CLUSTER_NAME -z GKE_CLUSTER_ZONE [-m MACHINE_TYPE] [-v KFP_VERSION]"
+  exit 1
+}
 
-# Cluster vars
-PROJECT_ID=$1
-CLUSTER_NAME=$2
-ZONE=$3
-NAMESPACE=$4
+PIPELINE_VERSION=0.5.1
+MACHINE_TYPE="n1-standard-2"
 
-echo "Workload Identity has not been provisioned for "${CLUSTER_NAME}" ("${ZONE}"), enabling it now..."
+while getopts ":n:z:m:v:" opts; do
+  case "${opts}" in
+    n)
+      CLUSTER_NAME=${OPTARG}
+      ;;
+    z)
+      ZONE=${OPTARG}
+      ;;
+    m)
+      MACHINE_TYPE=${OPTARG}
+      ;;
+    v)
+      PIPELINE_VERSION=${OPTARG}
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+
+if [ -z "${CLUSTER_NAME}" ] || [ -z "${ZONE}" ]; then
+    usage
+fi
+
+PROJECT_ID=$(gcloud config get-value project)
+NAMESPACE="kubeflow"
+SCOPES=cloud-platform
 
 # Google service Account (GSA)
 SYSTEM_GSA=$CLUSTER_NAME-kfp-system
@@ -51,23 +60,29 @@ USER_GSA=$CLUSTER_NAME-kfp-user
 SYSTEM_KSA=(ml-pipeline-ui ml-pipeline-visualizationserver)
 USER_KSA=(pipeline-runner default)
 
+gcloud config set project $PROJECT_ID
+gcloud config set compute/zone $ZONE
+
+gcloud services enable ml.googleapis.com \
+  compute.googleapis.com \
+  container.googleapis.com \
+  containerregistry.googleapis.com
+
+gcloud beta container clusters create "${CLUSTER_NAME}" \
+  --zone=$ZONE \
+  --machine-type=$MACHINE_TYPE \
+  --disk-type="pd-standard" \
+  --disk-size="100" \
+  --num-nodes="3" \
+  --scopes=$SCOPES  \
+  --identity-namespace="${PROJECT_ID}".svc.id.goog
+
 gcloud container clusters get-credentials $CLUSTER_NAME \
   --zone=$ZONE
 
-gcloud container clusters update $CLUSTER_NAME \
-  --zone=$ZONE \
-  --workload-pool="${PROJECT_ID}".svc.id.goog 
-
-gcloud beta container node-pools update default-pool \
-  --cluster=$CLUSTER_NAME \
-  --zone=$ZONE \
-  --max-surge-upgrade=3 \  
-  --max-unavailable-upgrade=0
-
-gcloud container node-pools update default-pool \
-  --cluster=$CLUSTER_NAME \
-  --zone=$ZONE \
-  --workload-metadata=GKE_METADATA
+kubectl apply -k "github.com/kubeflow/pipelines/manifests/kustomize/cluster-scoped-resources?ref=${PIPELINE_VERSION}"
+kubectl wait --for condition=established --timeout=60s crd/applications.app.k8s.io
+kubectl apply -k "github.com/kubeflow/pipelines/manifests/kustomize/env/dev?ref=${PIPELINE_VERSION}"
 
 echo "Creating Google Service Accounts..."
 function create_gsa_if_not_present {
@@ -91,7 +106,7 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:$USER_GSA@$PROJECT_ID.iam.gserviceaccount.com" \
   --role="roles/editor"
 
-# Bind KSA to GSA through workload identity.
+# Bind and annotate KSAs.
 function bind_gsa_and_ksa {
   local gsa=${1}
   local ksa=${2}
@@ -119,10 +134,15 @@ for ksa in ${USER_KSA[@]}; do
   bind_gsa_and_ksa $USER_GSA $ksa
 done
 
+echo "KFP cluster created and bindings set up."
+
 gcloud container clusters update $CLUSTER_NAME \
   --zone=$ZONE \
   --update-labels mlpg_wi_auth=true
 
-RED='\033[0;31m'
-COLOR_RESET='\033[0m'
-echo -e "${RED}Workload Identity has been enabled, and KFP dashboard URL has been updated. Please update the hostname in config.yaml for future runs.${COLOR_RESET}"
+sleep 30
+
+echo "The KFP Dashboard hostname is:"
+kubectl describe configmap inverse-proxy-config -n kubeflow | grep googleusercontent.com
+
+echo "Please update the config.yaml with the cluster details and KFP hostname before deploying your models."
